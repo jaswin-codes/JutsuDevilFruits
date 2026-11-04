@@ -6,12 +6,15 @@ from hand_detector import HandDetector
 from signs import match_sign, combine_signs
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
-from combos import match_combo, MAX_COMBO_LENGTH
+from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
+from game import Game
 
 def main():
     parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
+    parser.add_argument("--game", action="store_true",
+                        help="60-second challenge: perform the target jutsu for points (R restarts)")
     args = parser.parse_args()
 
     cap = cv2.VideoCapture(args.camera)
@@ -28,6 +31,7 @@ def main():
     effect_start  = 0.0
     EFFECT_SECONDS = 2.0
     particles = ParticleSystem()
+    game = Game(COMBOS, time.monotonic()) if args.game else None
     last_tick = time.monotonic()
     MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
     missed_frames = 0
@@ -73,6 +77,8 @@ def main():
                     palm_centres = [pts[9] for pts in hand_points]   # 9 = middle finger base
                     particles.burst(np.mean(palm_centres, axis=0), combo["colour"])
                     play_sound(*combo["sound"])
+                    if game:
+                        game.on_combo(combo, time.monotonic())
 
             else:
                 cv2.putText(frame, "Holding...", (20, 90),
@@ -117,10 +123,25 @@ def main():
         last_tick = now
         particles.draw(frame)
 
+        if game:
+            h = frame.shape[0]
+            if game.over(now):
+                hud = [f"TIME UP - SCORE {game.score}", "Press R to play again"]
+            else:
+                hud = [f"TARGET: {COMBOS[game.target]['name']}",
+                       f"Signs: {' > '.join(game.target)}",
+                       f"Score: {game.score}   Time: {game.time_left(now):.0f}s"]
+            for i, line in enumerate(hud):
+                cv2.putText(frame, line, (20, h - 20 - 30 * (len(hud) - 1 - i)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
         cv2.imshow("Jutsu Code", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        if key == ord('r') and game:
+            game = Game(COMBOS, time.monotonic())
 
     cap.release()
     cv2.destroyAllWindows()

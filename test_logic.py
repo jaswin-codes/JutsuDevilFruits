@@ -92,3 +92,16 @@ def test_particles_burst_move_and_expire():
     assert frame.any()
     p.update(5.0)
     assert len(p.life) == 0
+
+
+def test_game_scores_only_target_and_ends_on_time():
+    from game import Game
+    game = Game(combos.COMBOS, now=0.0, duration=60.0)
+    target = game.target
+    wrong = next(c for signs, c in combos.COMBOS.items() if signs != target)
+    assert not game.on_combo(wrong, now=1.0) and game.score == 0
+    assert game.on_combo(combos.COMBOS[target], now=2.0) and game.score == 1
+    assert game.target != target                       # new target each time
+    assert game.time_left(30.0) == 30.0
+    assert not game.on_combo(combos.COMBOS[game.target], now=61.0)  # no points after time up
+    assert game.over(61.0) and game.score == 1
