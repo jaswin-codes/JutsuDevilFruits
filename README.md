@@ -9,7 +9,9 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Rule-based sign recognition (no model training)
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
-- Visual jutsu effect overlays with fade timing
+- Two-hand signs (e.g. both hands open = `Ushi+Ushi`)
+- Visual jutsu effects: colour flash, particle burst and sound (sound on Windows)
+- Game mode: 60-second challenge with a target jutsu and score
 
 ## Current Sign Set
 
@@ -24,6 +26,10 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Ne -> Tora -> Inu: KATON - FIREBALL JUTSU
 - Ushi -> Ne -> Tora: SHADOW CLONE JUTSU
 - Tori -> Inu -> Ushi: CHIDORI
+- Ushi+Ushi -> Tora+Tora (both hands): RASENGAN
+
+Two-hand signs are written `Left+Right`, meaning your own left and right hand.
+Add a combo of any length with one line in combos.py.
 
 ## Project Structure
 
@@ -32,7 +38,10 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - signs.py: Sign definitions and matching
 - stabilizer.py: Temporal smoothing for stable sign confirmation
 - sequence.py: Sign change sequence tracking
-- combos.py: Combo definitions and lookup
+- combos.py: Combo definitions (name, colour, sound) and lookup
+- effects.py: Particle bursts and generated jutsu sounds
+- game.py: Timed challenge mode
+- test_logic.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -68,6 +77,7 @@ python main.py
 ```
 
    Use another webcam with `python main.py --camera 1`.
+   Play the challenge with `python main.py --game` (R restarts when time is up).
 
 4. Quit by pressing Q in the OpenCV window.
 

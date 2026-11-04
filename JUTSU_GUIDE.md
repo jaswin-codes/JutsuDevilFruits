@@ -168,6 +168,28 @@ Step 3: 🖐️  Ushi (open palm)
 
 ---
 
+### 🌀 Rasengan (two hands)
+**Sequence:** `Ushi+Ushi → Tora+Tora`
+
+```
+Step 1: 🖐️🖐️  Ushi with both hands
+Step 2: ✌️✌️  Tora with both hands
+```
+**Effect:** Screen flashes blue. Rasengan displayed on screen.
+
+> With two hands in view, the sign is read as `Left+Right` (your own hands).
+> Both hands must show a known sign, or nothing registers.
+
+---
+
+## Game Mode
+
+Run `python main.py --game`. A target jutsu and its signs appear at the bottom.
+Perform it to score a point and get a new target. You have 60 seconds;
+press **R** to play again.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
