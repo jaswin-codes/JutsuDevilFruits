@@ -17,6 +17,8 @@ def main():
     active_effect = None
     effect_timer  = 0
     EFFECT_DURATION = 60
+    MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
+    missed_frames = 0
 
     print("Jutsu Code Stage 7 - Visual Effects")
     print("Press Q to quit.")
@@ -30,6 +32,7 @@ def main():
         frame, hands = detector.find_hands(frame)
 
         if hands:
+            missed_frames = 0
             landmarks = detector.get_landmark_list(hands[0], frame.shape)
             fingers   = detector.get_finger_states(landmarks)
             raw_sign  = match_sign(fingers)
@@ -63,8 +66,11 @@ def main():
                             (20, 130 + i * 28),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
         else:
-            stabilizer.reset()
-            sequencer.reset()
+            # MediaPipe often drops the hand for a frame or two mid-transition
+            missed_frames += 1
+            if missed_frames == MISS_LIMIT:
+                stabilizer.reset()
+                sequencer.reset()
             cv2.putText(frame, "No Hand Detected", (20, 40),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 

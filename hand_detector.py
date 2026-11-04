@@ -1,3 +1,4 @@
+import math
 import cv2
 import mediapipe as mp
 
@@ -50,31 +51,16 @@ class HandDetector:
         if len(landmark_list) < 21:
             return [0, 0, 0, 0, 0]
 
-        fingers = []
+        # Distance-based, so it works however the hand is rotated or which hand it is.
+        def dist(a, b):
+            return math.dist(landmark_list[a], landmark_list[b])
 
-        # --- Thumb ---
-        # Compare tip (4) vs base of index finger (5) using x axis
-        # This accounts for which side the thumb is on relative to the palm
-        thumb_tip_x  = landmark_list[4][0]
-        palm_anchor_x = landmark_list[5][0]   # base of index finger
+        # Thumb: extended if its tip (4) is further from the pinky base (17) than its IP joint (3)
+        fingers = [1 if dist(4, 17) > dist(3, 17) else 0]
 
-        # Also check wrist (0) to determine hand orientation
-        wrist_x = landmark_list[0][0]
-
-        # If wrist is to the LEFT of index base → right hand in mirror view
-        # Thumb is UP if tip is further LEFT than the palm anchor
-        if wrist_x < palm_anchor_x:
-            fingers.append(1 if thumb_tip_x > palm_anchor_x else 0)
-        else:
-            fingers.append(1 if thumb_tip_x < palm_anchor_x else 0)
-
-        # --- Four fingers (y-axis comparison) ---
-        tip_ids   = [8, 12, 16, 20]
-        joint_ids = [6, 10, 14, 18]
-
-        for tip, joint in zip(tip_ids, joint_ids):
-            tip_y   = landmark_list[tip][1]
-            joint_y = landmark_list[joint][1]
-            fingers.append(1 if tip_y < joint_y else 0)
+        # Four fingers: extended if the tip is further from the wrist (0) than the PIP joint;
+        # a curled finger folds its tip back toward the palm.
+        for tip, pip in zip([8, 12, 16, 20], [6, 10, 14, 18]):
+            fingers.append(1 if dist(tip, 0) > dist(pip, 0) else 0)
 
         return fingers
