@@ -1,3 +1,4 @@
+import argparse
 import time
 import cv2
 from hand_detector import HandDetector
@@ -7,7 +8,13 @@ from sequence import SequenceDetector
 from combos import match_combo, MAX_COMBO_LENGTH
 
 def main():
-    cap = cv2.VideoCapture(0)
+    parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
+    parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
+    args = parser.parse_args()
+
+    cap = cv2.VideoCapture(args.camera)
+    if not cap.isOpened():
+        raise SystemExit(f"Could not open camera {args.camera}. Try --camera 1.")
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -21,12 +28,13 @@ def main():
     MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
     missed_frames = 0
 
-    print("Jutsu Code Stage 7 - Visual Effects")
+    print("Jutsu Code")
     print("Press Q to quit.")
 
     while True:
         success, frame = cap.read()
         if not success:
+            print("Camera stopped sending frames.")
             break
 
         frame = cv2.flip(frame, 1)
@@ -94,7 +102,7 @@ def main():
                 active_effect = None
                 sequencer.reset()
 
-        cv2.imshow("Jutsu Code - Stage 7: Visual Effects", frame)
+        cv2.imshow("Jutsu Code", frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
