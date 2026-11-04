@@ -1,11 +1,13 @@
 import argparse
 import time
 import cv2
+import numpy as np
 from hand_detector import HandDetector
 from signs import match_sign, combine_signs
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import match_combo, MAX_COMBO_LENGTH
+from effects import ParticleSystem, play_sound
 
 def main():
     parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
@@ -25,6 +27,8 @@ def main():
     active_effect = None   # combo dict from combos.py while its effect plays
     effect_start  = 0.0
     EFFECT_SECONDS = 2.0
+    particles = ParticleSystem()
+    last_tick = time.monotonic()
     MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
     missed_frames = 0
 
@@ -66,6 +70,9 @@ def main():
                 if combo and combo is not active_effect:
                     active_effect = combo
                     effect_start  = time.monotonic()
+                    palm_centres = [pts[9] for pts in hand_points]   # 9 = middle finger base
+                    particles.burst(np.mean(palm_centres, axis=0), combo["colour"])
+                    play_sound(*combo["sound"])
 
             else:
                 cv2.putText(frame, "Holding...", (20, 90),
@@ -104,6 +111,11 @@ def main():
             if alpha == 0:
                 active_effect = None
                 sequencer.reset()
+
+        now = time.monotonic()
+        particles.update(now - last_tick)
+        last_tick = now
+        particles.draw(frame)
 
         cv2.imshow("Jutsu Code", frame)
 
