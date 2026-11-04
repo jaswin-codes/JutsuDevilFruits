@@ -1,9 +1,10 @@
+import time
 import cv2
 from hand_detector import HandDetector
 from signs import match_sign
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
-from combos import match_combo
+from combos import match_combo, MAX_COMBO_LENGTH
 
 def main():
     cap = cv2.VideoCapture(0)
@@ -12,11 +13,11 @@ def main():
 
     detector   = HandDetector()
     stabilizer = SignStabilizer(buffer_size=10, confirm_threshold=7)
-    sequencer  = SequenceDetector(max_length=3)
+    sequencer  = SequenceDetector(max_length=MAX_COMBO_LENGTH)
 
-    active_effect = None
-    effect_timer  = 0
-    EFFECT_DURATION = 60
+    active_effect = None   # combo dict from combos.py while its effect plays
+    effect_start  = 0.0
+    EFFECT_SECONDS = 2.0
     MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
     missed_frames = 0
 
@@ -51,9 +52,9 @@ def main():
                 cv2.putText(frame, f"Seq: {' > '.join(sequence)}", (20, 290),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (200, 200, 0), 2)
 
-                if combo and combo != active_effect:
+                if combo and combo is not active_effect:
                     active_effect = combo
-                    effect_timer  = EFFECT_DURATION
+                    effect_start  = time.monotonic()
 
             else:
                 cv2.putText(frame, "Holding...", (20, 90),
@@ -75,31 +76,21 @@ def main():
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         # --- Visual effect overlay ---
-        if effect_timer > 0:
-            effect_timer -= 1
-
-            if "FIREBALL" in active_effect:
-                colour = (0, 80, 255)
-            elif "CLONE" in active_effect:
-                colour = (255, 200, 0)
-            elif "CHIDORI" in active_effect:
-                colour = (0, 255, 255)
-            else:
-                colour = (255, 255, 255)
-
-            alpha = effect_timer / EFFECT_DURATION
+        if active_effect:
+            alpha = max(0.0, 1 - (time.monotonic() - effect_start) / EFFECT_SECONDS)
             overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 0), (frame.shape[1], frame.shape[0]), colour, -1)
+            cv2.rectangle(overlay, (0, 0), (frame.shape[1], frame.shape[0]),
+                          active_effect["colour"], -1)
             cv2.addWeighted(overlay, alpha * 0.6, frame, 1 - alpha * 0.6, 0, frame)
 
-            text = active_effect.split("🔥")[0].split("👥")[0].split("⚡")[0].strip()
+            text = active_effect["name"]
             text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.2, 2)[0]
             text_x = (frame.shape[1] - text_size[0]) // 2
             text_y = (frame.shape[0] - text_size[1]) // 2 + 20
             cv2.putText(frame, text, (text_x, text_y),
                         cv2.FONT_HERSHEY_DUPLEX, 1.2, (255, 255, 255), 3)
 
-            if effect_timer == 0:
+            if alpha == 0:
                 active_effect = None
                 sequencer.reset()
 
