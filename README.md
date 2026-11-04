@@ -43,15 +43,15 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 
 Python packages:
 
-- opencv-python
-- mediapipe
+- mediapipe 0.10.21 (installs OpenCV as opencv-contrib-python)
+- pytest (tests only)
 
 ## Quick Start (Windows PowerShell)
 
-1. Create and activate virtual environment:
+1. Create and activate a Python 3.11 virtual environment (mediapipe 0.10.21 doesn't support 3.13+):
 
 ```powershell
-python -m venv venv
+py -3.11 -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
@@ -67,7 +67,17 @@ pip install -r requirements.txt
 python main.py
 ```
 
+   Use another webcam with `python main.py --camera 1`.
+
 4. Quit by pressing Q in the OpenCV window.
+
+## Running Tests
+
+The recognition logic is tested without a webcam:
+
+```powershell
+python -m pytest
+```
 
 ## How Detection Works
 
@@ -82,19 +92,10 @@ python main.py
 ## Troubleshooting
 
 - No camera feed:
-  - Change camera index in main.py from VideoCapture(0) to VideoCapture(1).
+  - Run `python main.py --camera 1` (or 2, 3...) to pick another webcam.
 - Signs flicker:
   - Improve lighting, reduce motion, and keep hand centered.
 - Combo not triggering:
   - Hold each sign long enough to stabilize before changing.
 - Startup import errors:
   - Ensure the virtual environment is active and dependencies are installed.
-
-## Safety for GitHub Push
-
-This repository now includes .gitignore entries for:
-
-- venv and other local environments
-- __pycache__ and Python bytecode
-- local .env files
-- common editor/OS artifacts
