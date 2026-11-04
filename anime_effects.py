@@ -21,7 +21,11 @@ def _add_light(frame, centre, half, draw, bloom=2):
     x0, y0, x1, y1 = box
     layer = np.zeros((y1 - y0, x1 - x0, 3), np.uint8)
     draw(layer, (int(centre[0]) - x0, int(centre[1]) - y0))
-    glow = cv2.GaussianBlur(layer, (0, 0), max(2, half / 12))
+    # Blur at 1/4 size and scale back: same soft bloom for a fraction of the cost
+    small = cv2.resize(layer, (max(layer.shape[1] // 4, 1), max(layer.shape[0] // 4, 1)),
+                       interpolation=cv2.INTER_AREA)
+    glow = cv2.resize(cv2.GaussianBlur(small, (0, 0), max(0.5, half / 48)),
+                      (layer.shape[1], layer.shape[0]))
     region = frame[y0:y1, x0:x1]
     cv2.add(region, layer, dst=region)
     for _ in range(bloom):    # a strong bloom sells "light"
@@ -97,21 +101,27 @@ def draw_clones(frame, person, mask, t, duration=3.0):
 
     person: clean camera frame (no HUD/landmarks); mask: float HxW, 1 = person.
     """
-    h, w = frame.shape[:2]
-    mask = np.clip((mask.astype(np.float32) - 0.3) / 0.4, 0, 1)[..., None]   # crisp edge
-    src = person.astype(np.float32)
-    out = frame.astype(np.float32)
-    fade = np.clip((duration - t) / 0.4, 0, 1)    # all clones vanish in the last 0.4s
+    w = frame.shape[1]
+    mask = np.clip((mask.astype(np.float32) - 0.3) / 0.4, 0, 1)   # crisp edge
+    ys, xs = np.nonzero(mask)
+    if not len(xs):
+        return
+    # Only the person's bounding box (and its shifted copies) is touched: keeps FPS up
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    m = mask[y0:y1, :, None]
+    src = person[y0:y1].astype(np.float32)
+    out = frame[y0:y1].astype(np.float32)
+    fade = float(np.clip((duration - t) / 0.4, 0, 1))    # all clones vanish in the last 0.4s
     for i, offset in enumerate(CLONE_OFFSETS):
-        alpha = np.clip((t - i * 0.15) / 0.2, 0, 1) * fade   # pop in one after another
-        if alpha <= 0:
+        alpha = float(np.clip((t - i * 0.15) / 0.2, 0, 1)) * fade   # pop in one after another
+        dx = int(offset * w)
+        tx0, tx1 = max(x0 + dx, 0), min(x1 + dx, w)    # clipped at the frame edge, no wrap
+        if alpha <= 0 or tx1 <= tx0:
             continue
-        shift = np.float32([[1, 0, offset * w], [0, 1, 0]])
-        clone = cv2.warpAffine(src, shift, (w, h))           # border 0: no wrap-around
-        a = cv2.warpAffine(mask, shift, (w, h))[..., None] * alpha
-        out = out * (1 - a) + clone * a
-    out = out * (1 - mask) + src * mask    # real user stays in front of the clones
-    frame[:] = out.astype(np.uint8)
+        a = m[:, tx0 - dx:tx1 - dx] * alpha
+        out[:, tx0:tx1] += (src[:, tx0 - dx:tx1 - dx] - out[:, tx0:tx1]) * a
+    out[:, x0:x1] += (src[:, x0:x1] - out[:, x0:x1]) * m[:, x0:x1]   # real user in front
+    frame[y0:y1] = out.astype(np.uint8)
 
 
 def draw_fireball(frame, mouth, t, duration=2.5):
@@ -126,16 +136,20 @@ def draw_fireball(frame, mouth, t, duration=2.5):
     if box is None or fade <= 0:
         return
     x0, y0, x1, y1 = box
+    # Shade at 1/4 resolution then upscale: the fireball is soft, and full-res costs ~150 ms
+    sw, sh = max((x1 - x0) // 4, 1), max((y1 - y0) // 4, 1)
     rng = np.random.default_rng(int(t * 15))                   # flames re-shape 15x a second
-    noise = cv2.resize(rng.random((6, 6), np.float32), (x1 - x0, y1 - y0),
-                       interpolation=cv2.INTER_CUBIC)
-    yy, xx = np.mgrid[y0:y1, x0:x1]
-    d = np.hypot(xx - mouth[0], yy - mouth[1]) / radius * (1 + 0.45 * (noise - 0.5))
+    noise = cv2.resize(rng.random((6, 6), np.float32), (sw, sh), interpolation=cv2.INTER_CUBIC)
+    yy, xx = np.mgrid[0:sh, 0:sw] * 4.0
+    d = np.hypot(xx + x0 - mouth[0], yy + y0 - mouth[1]) / radius * (1 + 0.45 * (noise - 0.5))
     # Colour by distance from the centre: white-hot core -> yellow -> orange -> deep red (BGR)
     stops = [0.0, 0.35, 0.65, 1.0]
     colour = np.stack([np.interp(d, stops, [200, 0, 0, 0]),
                        np.interp(d, stops, [255, 220, 110, 20]),
                        np.interp(d, stops, [255, 255, 255, 190])], -1)
-    alpha = (np.clip((1.05 - d) / 0.3, 0, 1) * fade)[..., None]
+    alpha = np.clip((1.05 - d) / 0.3, 0, 1) * fade
+    size = (x1 - x0, y1 - y0)
+    colour = cv2.resize(colour.astype(np.float32), size)
+    alpha = cv2.resize(alpha.astype(np.float32), size)[..., None]
     region = frame[y0:y1, x0:x1]
-    region[:] = (region * (1 - alpha) + colour * alpha).astype(np.uint8)
+    region[:] = (region + (colour - region) * alpha).astype(np.uint8)
