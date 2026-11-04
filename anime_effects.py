@@ -112,3 +112,30 @@ def draw_clones(frame, person, mask, t, duration=3.0):
         out = out * (1 - a) + clone * a
     out = out * (1 - mask) + src * mask    # real user stays in front of the clones
     frame[:] = out.astype(np.uint8)
+
+
+def draw_fireball(frame, mouth, t, duration=2.5):
+    """Fire Style: a fireball swells at the mouth, then rushes at the camera and fades."""
+    h = frame.shape[0]
+    if t < 0.5:
+        radius = 8 + 32 * t / 0.5                              # gathering at the lips
+    else:
+        radius = 40 + (0.75 * h - 40) * ((t - 0.5) / (duration - 0.5)) ** 0.7   # flies forward
+    fade = np.clip((duration - t) / 0.6, 0, 1)
+    box = _roi(frame, mouth, int(radius * 1.3))
+    if box is None or fade <= 0:
+        return
+    x0, y0, x1, y1 = box
+    rng = np.random.default_rng(int(t * 15))                   # flames re-shape 15x a second
+    noise = cv2.resize(rng.random((6, 6), np.float32), (x1 - x0, y1 - y0),
+                       interpolation=cv2.INTER_CUBIC)
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    d = np.hypot(xx - mouth[0], yy - mouth[1]) / radius * (1 + 0.45 * (noise - 0.5))
+    # Colour by distance from the centre: white-hot core -> yellow -> orange -> deep red (BGR)
+    stops = [0.0, 0.35, 0.65, 1.0]
+    colour = np.stack([np.interp(d, stops, [200, 0, 0, 0]),
+                       np.interp(d, stops, [255, 220, 110, 20]),
+                       np.interp(d, stops, [255, 255, 255, 190])], -1)
+    alpha = (np.clip((1.05 - d) / 0.3, 0, 1) * fade)[..., None]
+    region = frame[y0:y1, x0:x1]
+    region[:] = (region * (1 - alpha) + colour * alpha).astype(np.uint8)

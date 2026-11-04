@@ -9,7 +9,7 @@ from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
-from anime_effects import draw_chidori, draw_rasengan, draw_clones, CLONE_OFFSETS
+from anime_effects import draw_chidori, draw_rasengan, draw_clones, draw_fireball, CLONE_OFFSETS
 from game import Game
 
 def main():
@@ -36,6 +36,7 @@ def main():
     HAND_EFFECTS = ("chidori", "rasengan")
     palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
     segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
+    face_mesh, mouth = None, None   # built on first Fireball; mouth = last seen lip centre
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if args.game else None
     last_tick = time.monotonic()
@@ -128,12 +129,15 @@ def main():
                     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
                 mask = segmenter.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).segmentation_mask
                 draw_clones(frame, clean, mask, t, EFFECT_SECONDS[kind])
-            else:   # not built yet: old colour flash
-                alpha = max(0.0, 1 - t / EFFECT_SECONDS[kind])
-                overlay = frame.copy()
-                cv2.rectangle(overlay, (0, 0), (frame.shape[1], frame.shape[0]),
-                              active_effect["colour"], -1)
-                cv2.addWeighted(overlay, alpha * 0.6, frame, 1 - alpha * 0.6, 0, frame)
+            elif kind == "fireball":
+                if face_mesh is None:
+                    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=1)
+                faces = face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks
+                if faces:   # 13/14 = inner upper/lower lip
+                    lips = [faces[0].landmark[i] for i in (13, 14)]
+                    mouth = (np.mean([p.x for p in lips]) * frame.shape[1],
+                             np.mean([p.y for p in lips]) * frame.shape[0])
+                draw_fireball(frame, mouth if mouth is not None else palm, t, EFFECT_SECONDS[kind])
 
             if t < 2.0:   # jutsu name banner near the top
                 text = active_effect["name"]

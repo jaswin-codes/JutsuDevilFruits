@@ -115,6 +115,8 @@ def test_anime_effects_draw_safely_at_frame_edges():
         frame = np.full((480, 640, 3), 40, np.uint8)
         fx.draw_chidori(frame, centre, 40, 0.3)
         fx.draw_rasengan(frame, centre, 40, 0.3)
+        for t in (0.2, 1.5, 2.5):
+            fx.draw_fireball(frame, centre, t)
         if centre == (320, 240):
             assert frame.max() == 255   # something bright was drawn
 
