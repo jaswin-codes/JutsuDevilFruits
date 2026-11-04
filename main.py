@@ -1,15 +1,20 @@
 import argparse
 import time
 import cv2
+import numpy as np
 from hand_detector import HandDetector
-from signs import match_sign
+from signs import match_sign, combine_signs
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
-from combos import match_combo, MAX_COMBO_LENGTH
+from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
+from effects import ParticleSystem, play_sound
+from game import Game
 
 def main():
     parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
+    parser.add_argument("--game", action="store_true",
+                        help="60-second challenge: perform the target jutsu for points (R restarts)")
     args = parser.parse_args()
 
     cap = cv2.VideoCapture(args.camera)
@@ -18,13 +23,16 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    detector   = HandDetector()
+    detector   = HandDetector(max_hands=2)
     stabilizer = SignStabilizer(buffer_size=10, confirm_threshold=7)
     sequencer  = SequenceDetector(max_length=MAX_COMBO_LENGTH)
 
     active_effect = None   # combo dict from combos.py while its effect plays
     effect_start  = 0.0
     EFFECT_SECONDS = 2.0
+    particles = ParticleSystem()
+    game = Game(COMBOS, time.monotonic()) if args.game else None
+    last_tick = time.monotonic()
     MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
     missed_frames = 0
 
@@ -42,9 +50,12 @@ def main():
 
         if hands:
             missed_frames = 0
-            landmarks = detector.get_landmark_list(hands[0], frame.shape)
-            fingers   = detector.get_finger_states(landmarks)
-            raw_sign  = match_sign(fingers)
+            # Order hands left-to-right on screen: MediaPipe's list order isn't stable
+            hand_points = sorted((detector.get_landmark_list(h, frame.shape) for h in hands),
+                                 key=lambda pts: pts[0][0])
+            hand_fingers = [detector.get_finger_states(pts) for pts in hand_points]
+            fingers   = hand_fingers[0]   # finger panel shows the left-most hand
+            raw_sign  = combine_signs([match_sign(f) for f in hand_fingers])
             stable_sign = stabilizer.update(raw_sign)
 
             cv2.putText(frame, f"Raw:    {raw_sign}", (20, 40),
@@ -63,6 +74,11 @@ def main():
                 if combo and combo is not active_effect:
                     active_effect = combo
                     effect_start  = time.monotonic()
+                    palm_centres = [pts[9] for pts in hand_points]   # 9 = middle finger base
+                    particles.burst(np.mean(palm_centres, axis=0), combo["colour"])
+                    play_sound(*combo["sound"])
+                    if game:
+                        game.on_combo(combo, time.monotonic())
 
             else:
                 cv2.putText(frame, "Holding...", (20, 90),
@@ -102,10 +118,30 @@ def main():
                 active_effect = None
                 sequencer.reset()
 
+        now = time.monotonic()
+        particles.update(now - last_tick)
+        last_tick = now
+        particles.draw(frame)
+
+        if game:
+            h = frame.shape[0]
+            if game.over(now):
+                hud = [f"TIME UP - SCORE {game.score}", "Press R to play again"]
+            else:
+                hud = [f"TARGET: {COMBOS[game.target]['name']}",
+                       f"Signs: {' > '.join(game.target)}",
+                       f"Score: {game.score}   Time: {game.time_left(now):.0f}s"]
+            for i, line in enumerate(hud):
+                cv2.putText(frame, line, (20, h - 20 - 30 * (len(hud) - 1 - i)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+
         cv2.imshow("Jutsu Code", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        if key == ord('r') and game:
+            game = Game(COMBOS, time.monotonic())
 
     cap.release()
     cv2.destroyAllWindows()

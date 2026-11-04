@@ -5,7 +5,7 @@ import types
 sys.modules.setdefault("mediapipe", types.ModuleType("mediapipe"))  # detector math doesn't need it
 
 from hand_detector import HandDetector
-from signs import match_sign
+from signs import match_sign, combine_signs
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 import combos
@@ -60,8 +60,48 @@ def test_sequence_expires_after_long_gap():
 
 
 def test_combos_of_any_length_match_on_sequence_end(monkeypatch):
-    monkeypatch.setitem(combos.COMBOS, ("Ushi", "Inu"), {"name": "TWO", "colour": (0, 0, 0)})
-    monkeypatch.setitem(combos.COMBOS, ("Tori", "Ushi", "Inu"), {"name": "THREE", "colour": (0, 0, 0)})
+    monkeypatch.setitem(combos.COMBOS, ("Ushi", "Inu"), {"name": "TWO", "colour": (0, 0, 0), "sound": (1, 1)})
+    monkeypatch.setitem(combos.COMBOS, ("Tori", "Ushi", "Inu"), {"name": "THREE", "colour": (0, 0, 0), "sound": (1, 1)})
     assert match_combo(["Ne", "Ushi", "Inu"])["name"] == "TWO"
     assert match_combo(["Tori", "Ushi", "Inu"])["name"] == "THREE"  # longest match wins
     assert match_combo(["Inu"]) is None
+
+
+def test_two_hand_signs_combine_left_to_right():
+    assert combine_signs(["Tora"]) == "Tora"          # one hand unchanged
+    assert combine_signs(["Ushi", "Tora"]) == "Ushi+Tora"
+    assert combine_signs(["Ushi", None]) is None      # either hand unknown -> no sign
+    assert combine_signs([]) is None
+    assert match_combo(["Ushi+Ushi", "Tora+Tora"])["name"] == "RASENGAN"
+
+
+def test_every_combo_has_effect_fields():
+    for combo in combos.COMBOS.values():
+        assert set(combo) == {"name", "colour", "sound"}
+
+
+def test_particles_burst_move_and_expire():
+    import numpy as np
+    from effects import ParticleSystem
+    p = ParticleSystem()
+    p.burst((320, 240), (0, 80, 255), count=50)
+    p.update(0.1)
+    assert len(p.life) == 50 and not np.allclose(p.pos, (320, 240))
+    frame = np.zeros((480, 640, 3), np.uint8)
+    p.draw(frame)
+    assert frame.any()
+    p.update(5.0)
+    assert len(p.life) == 0
+
+
+def test_game_scores_only_target_and_ends_on_time():
+    from game import Game
+    game = Game(combos.COMBOS, now=0.0, duration=60.0)
+    target = game.target
+    wrong = next(c for signs, c in combos.COMBOS.items() if signs != target)
+    assert not game.on_combo(wrong, now=1.0) and game.score == 0
+    assert game.on_combo(combos.COMBOS[target], now=2.0) and game.score == 1
+    assert game.target != target                       # new target each time
+    assert game.time_left(30.0) == 30.0
+    assert not game.on_combo(combos.COMBOS[game.target], now=61.0)  # no points after time up
+    assert game.over(61.0) and game.score == 1

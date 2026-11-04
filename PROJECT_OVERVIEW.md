@@ -101,6 +101,18 @@ displayed centred on screen during the effect. Sequence auto-resets after trigge
 **Key concepts:** Alpha blending, overlay compositing, frame-based timers,
 OpenCV drawing utilities.
 
+### Stage 8 - Reliability Fixes
+Rotation-invariant finger detection (distances from the wrist instead of screen
+height), thumb ignored by every sign, tolerance for brief tracking dropouts, a 2s
+timeout between signs, and webcam-free unit tests.
+
+---
+
+### Stage 9 - Two Hands, Effects and Game Mode
+Up to two hands, each read as its own sign and combined left-to-right
+(`Ushi+Ushi`). Combos of any length carry their own name, colour and sound.
+Particle bursts and generated sounds on trigger, and a 60-second challenge mode.
+
 ---
 
 ## Project Architecture
@@ -112,7 +124,10 @@ jutsu_code/
 ├── signs.py           — Sign pattern definitions and matching logic
 ├── stabilizer.py      — Frame buffer smoothing for sign confirmation
 ├── sequence.py        — Sign change detection and sequence buffer
-└── combos.py          — Combo definitions and matching
+├── combos.py          — Combo definitions and matching
+├── effects.py         — Particle bursts and generated sounds
+├── game.py            — Timed challenge mode
+└── test_logic.py      — Webcam-free tests
 ```
 
 ---
@@ -144,9 +159,9 @@ jutsu_code/
 
 ## Current Status
 
-Stage 1–7 complete. Three jutsu combos fully functional with visual effects.
-Active development continuing toward sprite overlays, sound effects, extended sign
-library, two-hand detection, and a game UI with scoring and multiplayer.
+Stages 1–9 complete: four combos (one two-handed) with flash, particle and sound
+effects, plus a challenge mode. Next: an extended sign library, sprite overlays,
+and multiplayer.
 
 ---
 
