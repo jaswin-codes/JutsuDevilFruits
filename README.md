@@ -10,7 +10,9 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
 - Two-hand signs (e.g. both hands open = `Ushi+Ushi`)
-- Visual jutsu effects: colour flash, particle burst and sound (sound on Windows)
+- Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
+  Shadow Clones of you (selfie segmentation), and a Fireball from your mouth (face mesh),
+  plus particle bursts and sound (sound on Windows)
 - Game mode: 60-second challenge with a target jutsu and score
 
 ## Current Sign Set
@@ -40,6 +42,7 @@ Add a combo of any length with one line in combos.py.
 - sequence.py: Sign change sequence tracking
 - combos.py: Combo definitions (name, colour, sound) and lookup
 - effects.py: Particle bursts and generated jutsu sounds
+- anime_effects.py: Chidori, Rasengan, Shadow Clone and Fireball drawing (numpy + OpenCV)
 - game.py: Timed challenge mode
 - test_logic.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution

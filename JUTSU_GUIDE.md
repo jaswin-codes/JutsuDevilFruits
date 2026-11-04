@@ -26,7 +26,7 @@
 2. Keep it **steady** until the sign name appears on screen (~1/3 of a second)
 3. **Change** to the next sign in the sequence — holding the same sign does nothing
 4. Complete the full combo sequence to trigger the jutsu
-5. The screen will flash and the jutsu name will appear
+5. The jutsu effect plays and its name appears at the top
 6. The sequence resets automatically — you can go again immediately
 
 ---
@@ -140,7 +140,7 @@ Step 1: ☝️  Ne   (index finger up)
 Step 2: ✌️  Tora (peace sign)
 Step 3: ✊  Inu  (fist)
 ```
-**Effect:** Screen flashes orange-red. Katon Fireball Jutsu displayed on screen.
+**Effect:** A fireball swells at your mouth, then rushes at the camera. Face the camera so your mouth is found.
 
 ---
 
@@ -152,7 +152,7 @@ Step 1: 🖐️  Ushi (open palm)
 Step 2: ☝️  Ne   (index finger up)
 Step 3: ✌️  Tora (peace sign)
 ```
-**Effect:** Screen flashes blue-gold. Shadow Clone Jutsu displayed on screen.
+**Effect:** Four copies of you pop up beside you in a puff of smoke for 3 seconds. Works best with a plain background.
 
 ---
 
@@ -164,7 +164,7 @@ Step 1: 🤘  Tori (rock on)
 Step 2: ✊  Inu  (fist)
 Step 3: 🖐️  Ushi (open palm)
 ```
-**Effect:** Screen flashes electric yellow. Chidori displayed on screen.
+**Effect:** A crackling white-blue lightning ball sits in your palm and follows it until you lower your hand.
 
 ---
 
@@ -175,7 +175,7 @@ Step 3: 🖐️  Ushi (open palm)
 Step 1: 🖐️🖐️  Ushi with both hands
 Step 2: ✌️✌️  Tora with both hands
 ```
-**Effect:** Screen flashes blue. Rasengan displayed on screen.
+**Effect:** A spinning blue chakra sphere forms between your hands and follows them until you lower them.
 
 > With two hands in view, the sign is read as `Left+Right` (your own hands).
 > Both hands must show a known sign, or nothing registers.
