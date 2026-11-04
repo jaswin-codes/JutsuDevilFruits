@@ -8,6 +8,7 @@ from hand_detector import HandDetector
 from signs import match_sign
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
+import combos
 from combos import match_combo
 
 
@@ -47,7 +48,7 @@ def test_full_combo_through_pipeline():
         stable = stab.update(sign)
         if stable:
             result = seq.update(stable, now=t)
-    assert match_combo(result).startswith("KATON")
+    assert match_combo(result)["name"].startswith("KATON")
 
 
 def test_sequence_expires_after_long_gap():
@@ -56,3 +57,11 @@ def test_sequence_expires_after_long_gap():
     seq.update("Ne", now=5.0)            # holding a sign doesn't expire it
     assert seq.update("Tora", now=6.0) == ["Ne", "Tora"]
     assert seq.update("Inu", now=9.0) == ["Inu"]  # 3s gap: stale signs dropped
+
+
+def test_combos_of_any_length_match_on_sequence_end(monkeypatch):
+    monkeypatch.setitem(combos.COMBOS, ("Ushi", "Inu"), {"name": "TWO", "colour": (0, 0, 0)})
+    monkeypatch.setitem(combos.COMBOS, ("Tori", "Ushi", "Inu"), {"name": "THREE", "colour": (0, 0, 0)})
+    assert match_combo(["Ne", "Ushi", "Inu"])["name"] == "TWO"
+    assert match_combo(["Tori", "Ushi", "Inu"])["name"] == "THREE"  # longest match wins
+    assert match_combo(["Inu"]) is None
