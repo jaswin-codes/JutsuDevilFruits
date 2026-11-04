@@ -49,10 +49,10 @@
 ---
 
 ### 🐯 Tora (Tiger)
-**Pattern:** `[0 | 1 | 1 | 0 | 0]`
+**Pattern:** `[any | 1 | 1 | 0 | 0]`
 
 ```
-Thumb:  DOWN  ✊
+Thumb:  ANY
 Index:  UP    ☝️
 Middle: UP    ✌️
 Ring:   DOWN  ✊
@@ -64,10 +64,10 @@ all others curled in. Like the classic ✌️ sign.
 ---
 
 ### 🐂 Ushi (Ox)
-**Pattern:** `[1 | 1 | 1 | 1 | 1]`
+**Pattern:** `[any | 1 | 1 | 1 | 1]`
 
 ```
-Thumb:  UP    👍
+Thumb:  ANY
 Index:  UP    ☝️
 Middle: UP    🖕
 Ring:   UP    💍
@@ -79,10 +79,10 @@ and spread apart. Like a stop sign or a high five.
 ---
 
 ### 🐭 Ne (Rat)
-**Pattern:** `[0 | 1 | 0 | 0 | 0]`
+**Pattern:** `[any | 1 | 0 | 0 | 0]`
 
 ```
-Thumb:  DOWN  ✊
+Thumb:  ANY
 Index:  UP    ☝️
 Middle: DOWN  ✊
 Ring:   DOWN  ✊
@@ -94,10 +94,10 @@ curled in tight. Classic pointing gesture ☝️.
 ---
 
 ### 🐕 Inu (Dog)
-**Pattern:** `[0 | 0 | 0 | 0 | 0]`
+**Pattern:** `[any | 0 | 0 | 0 | 0]`
 
 ```
-Thumb:  DOWN  ✊
+Thumb:  ANY
 Index:  DOWN  ✊
 Middle: DOWN  ✊
 Ring:   DOWN  ✊
@@ -106,16 +106,16 @@ Pinky:  DOWN  ✊
 **How to make it:** Closed fist. All fingers curled in, thumb tucked.
 Show the back of your fist to the camera ✊.
 
-> **Note:** Thumb is set to wildcard — it doesn't matter if your thumb is
+> **Note:** Thumb is a wildcard for every sign — it doesn't matter if your thumb is
 > slightly out, the fist will still be detected.
 
 ---
 
 ### 🐦 Tori (Bird)
-**Pattern:** `[0 | 1 | 0 | 0 | 1]`
+**Pattern:** `[any | 1 | 0 | 0 | 1]`
 
 ```
-Thumb:  DOWN  ✊
+Thumb:  ANY
 Index:  UP    ☝️
 Middle: DOWN  ✊
 Ring:   DOWN  ✊
@@ -175,7 +175,7 @@ Step 3: 🖐️  Ushi (open palm)
 | Sign not being detected | Hold hand steadier, face palm more toward camera |
 | Sign flickering between two values | Improve lighting, move hand closer |
 | Combo not triggering | Make sure each sign **confirms** before moving to next |
-| Thumb always showing UP | Normal — thumb is less reliable, some signs use wildcard |
+| Thumb always showing UP | Normal — thumb is ignored by every sign |
 | Camera not opening | Change `VideoCapture(0)` to `VideoCapture(1)` in main.py |
 | Program crashes on start | Make sure venv is activated before running |
 

@@ -2,12 +2,14 @@
 # Each sign is a list: [thumb, index, middle, ring, pinky]
 # 1 = finger up, 0 = finger down, -1 = ignore (wildcard)
 
+# Thumb is a wildcard everywhere: it's the least reliable finger, and the
+# other four fingers already tell every sign apart.
 SIGNS = {
-    "Tora":  [0, 1, 1, 0, 0],   # Tiger  - index + middle up
-    "Ushi":  [1, 1, 1, 1, 1],   # Ox     - open hand
-    "Ne":    [0, 1, 0, 0, 0],   # Rat    - index only
+    "Tora":  [-1, 1, 1, 0, 0],   # Tiger  - index + middle up
+    "Ushi":  [-1, 1, 1, 1, 1],   # Ox     - open hand
+    "Ne":    [-1, 1, 0, 0, 0],   # Rat    - index only
     "Inu":   [-1, 0, 0, 0, 0],   # Dog    - fist
-    "Tori":  [0, 1, 0, 0, 1],   # Bird   - index + pinky up
+    "Tori":  [-1, 1, 0, 0, 1],   # Bird   - index + pinky up
 }
 '''
 Ne → Tora → Inu KATON FIREBALL 🔥
