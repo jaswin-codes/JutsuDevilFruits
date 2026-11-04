@@ -2,7 +2,7 @@ import argparse
 import time
 import cv2
 from hand_detector import HandDetector
-from signs import match_sign
+from signs import match_sign, combine_signs
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import match_combo, MAX_COMBO_LENGTH
@@ -18,7 +18,7 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    detector   = HandDetector()
+    detector   = HandDetector(max_hands=2)
     stabilizer = SignStabilizer(buffer_size=10, confirm_threshold=7)
     sequencer  = SequenceDetector(max_length=MAX_COMBO_LENGTH)
 
@@ -42,9 +42,12 @@ def main():
 
         if hands:
             missed_frames = 0
-            landmarks = detector.get_landmark_list(hands[0], frame.shape)
-            fingers   = detector.get_finger_states(landmarks)
-            raw_sign  = match_sign(fingers)
+            # Order hands left-to-right on screen: MediaPipe's list order isn't stable
+            hand_points = sorted((detector.get_landmark_list(h, frame.shape) for h in hands),
+                                 key=lambda pts: pts[0][0])
+            hand_fingers = [detector.get_finger_states(pts) for pts in hand_points]
+            fingers   = hand_fingers[0]   # finger panel shows the left-most hand
+            raw_sign  = combine_signs([match_sign(f) for f in hand_fingers])
             stable_sign = stabilizer.update(raw_sign)
 
             cv2.putText(frame, f"Raw:    {raw_sign}", (20, 40),

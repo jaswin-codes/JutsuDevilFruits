@@ -1,10 +1,12 @@
 # combos.py
 # Each combo: sign sequence -> name shown on screen + effect colour (BGR).
-# Combos can be any length. No emoji: OpenCV can't draw them.
+# Combos can be any length and mix one- and two-hand signs. No emoji: OpenCV can't draw them.
 COMBOS = {
     ("Ne", "Tora", "Inu"):   {"name": "KATON - FIREBALL JUTSU", "colour": (0, 80, 255)},
     ("Ushi", "Ne", "Tora"):  {"name": "SHADOW CLONE JUTSU",     "colour": (255, 200, 0)},
     ("Tori", "Inu", "Ushi"): {"name": "CHIDORI",                "colour": (0, 255, 255)},
+    # Two-hand signs are "Left+Right" (your own left and right hand)
+    ("Ushi+Ushi", "Tora+Tora"): {"name": "RASENGAN",           "colour": (255, 150, 40)},
 }
 
 MAX_COMBO_LENGTH = max(len(signs) for signs in COMBOS)

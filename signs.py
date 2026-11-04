@@ -35,3 +35,13 @@ def match_sign(finger_states):
         if match:
             return sign_name
     return None
+
+def combine_signs(signs):
+    """
+    Per-hand signs ordered left to right on screen -> one sign name.
+    The frame is mirrored, so screen-left is the user's own left hand.
+    One hand: its sign as-is. Two hands: "Left+Right", or None if either is unknown.
+    """
+    if any(sign is None for sign in signs):
+        return None
+    return "+".join(signs) or None
