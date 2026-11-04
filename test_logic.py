@@ -114,5 +114,6 @@ def test_anime_effects_draw_safely_at_frame_edges():
     for centre in [(0, 0), (639, 479), (320, 240), (-50, 900)]:
         frame = np.full((480, 640, 3), 40, np.uint8)
         fx.draw_chidori(frame, centre, 40, 0.3)
+        fx.draw_rasengan(frame, centre, 40, 0.3)
         if centre == (320, 240):
             assert frame.max() == 255   # something bright was drawn

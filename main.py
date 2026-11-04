@@ -8,7 +8,7 @@ from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
-from anime_effects import draw_chidori
+from anime_effects import draw_chidori, draw_rasengan
 from game import Game
 
 def main():
@@ -114,6 +114,8 @@ def main():
             kind = active_effect["effect"]
             if kind == "chidori":
                 draw_chidori(frame, palm, palm_size * 1.1, t)
+            elif kind == "rasengan":
+                draw_rasengan(frame, palm, palm_size * 1.2, t)
             else:   # not built yet: old colour flash
                 alpha = max(0.0, 1 - t / EFFECT_SECONDS[kind])
                 overlay = frame.copy()
