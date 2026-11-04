@@ -87,3 +87,28 @@ def draw_rasengan(frame, centre, radius, t):
                         (255, 170, 80), 2, cv2.LINE_AA)
 
     _add_light(frame, centre, int(radius * 2), draw, bloom=1)
+
+
+CLONE_OFFSETS = (-0.52, 0.52, -0.28, 0.28)   # fraction of frame width; outer first = behind
+
+
+def draw_clones(frame, person, mask, t, duration=3.0):
+    """Shadow clones: copies of the segmented person beside them, real person kept in front.
+
+    person: clean camera frame (no HUD/landmarks); mask: float HxW, 1 = person.
+    """
+    h, w = frame.shape[:2]
+    mask = np.clip((mask.astype(np.float32) - 0.3) / 0.4, 0, 1)[..., None]   # crisp edge
+    src = person.astype(np.float32)
+    out = frame.astype(np.float32)
+    fade = np.clip((duration - t) / 0.4, 0, 1)    # all clones vanish in the last 0.4s
+    for i, offset in enumerate(CLONE_OFFSETS):
+        alpha = np.clip((t - i * 0.15) / 0.2, 0, 1) * fade   # pop in one after another
+        if alpha <= 0:
+            continue
+        shift = np.float32([[1, 0, offset * w], [0, 1, 0]])
+        clone = cv2.warpAffine(src, shift, (w, h))           # border 0: no wrap-around
+        a = cv2.warpAffine(mask, shift, (w, h))[..., None] * alpha
+        out = out * (1 - a) + clone * a
+    out = out * (1 - mask) + src * mask    # real user stays in front of the clones
+    frame[:] = out.astype(np.uint8)

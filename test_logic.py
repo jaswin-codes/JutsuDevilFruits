@@ -117,3 +117,16 @@ def test_anime_effects_draw_safely_at_frame_edges():
         fx.draw_rasengan(frame, centre, 40, 0.3)
         if centre == (320, 240):
             assert frame.max() == 255   # something bright was drawn
+
+
+def test_clones_copy_person_beside_them():
+    import numpy as np
+    import anime_effects as fx
+    person = np.zeros((480, 640, 3), np.uint8)
+    person[200:300, 300:340] = 200                  # a "person" in the middle
+    mask = (person[..., 0] > 0).astype(np.float32)
+    frame = person.copy()
+    fx.draw_clones(frame, person, mask, t=1.0)
+    clone_x = 320 + int(fx.CLONE_OFFSETS[3] * 640)
+    assert frame[250, clone_x] .min() > 150         # a clone appeared to the right
+    assert (frame[250, 320] == 200).all()           # real person untouched

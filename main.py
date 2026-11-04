@@ -1,6 +1,7 @@
 import argparse
 import time
 import cv2
+import mediapipe as mp
 import numpy as np
 from hand_detector import HandDetector
 from signs import match_sign, combine_signs
@@ -8,7 +9,7 @@ from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
-from anime_effects import draw_chidori, draw_rasengan
+from anime_effects import draw_chidori, draw_rasengan, draw_clones, CLONE_OFFSETS
 from game import Game
 
 def main():
@@ -34,6 +35,7 @@ def main():
     EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5}
     HAND_EFFECTS = ("chidori", "rasengan")
     palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
+    segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if args.game else None
     last_tick = time.monotonic()
@@ -50,6 +52,7 @@ def main():
             break
 
         frame = cv2.flip(frame, 1)
+        clean = frame.copy()   # without landmarks/HUD, for effects that copy the user
         frame, hands = detector.find_hands(frame)
 
         if hands:
@@ -84,6 +87,10 @@ def main():
                     active_effect = combo
                     effect_start  = time.monotonic()
                     particles.burst(palm, combo["colour"])
+                    if combo["effect"] == "clone":   # smoke puff where each clone appears
+                        for offset in CLONE_OFFSETS:
+                            particles.burst((palm[0] + offset * frame.shape[1], palm[1]),
+                                            (170, 170, 170), count=120, speed=350)
                     play_sound(*combo["sound"])
                     if game:
                         game.on_combo(combo, time.monotonic())
@@ -116,6 +123,11 @@ def main():
                 draw_chidori(frame, palm, palm_size * 1.1, t)
             elif kind == "rasengan":
                 draw_rasengan(frame, palm, palm_size * 1.2, t)
+            elif kind == "clone":
+                if segmenter is None:
+                    segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
+                mask = segmenter.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).segmentation_mask
+                draw_clones(frame, clean, mask, t, EFFECT_SECONDS[kind])
             else:   # not built yet: old colour flash
                 alpha = max(0.0, 1 - t / EFFECT_SECONDS[kind])
                 overlay = frame.copy()
