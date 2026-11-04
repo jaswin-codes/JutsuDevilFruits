@@ -23,7 +23,7 @@
 ## How It Works
 
 1. Hold a sign in front of the camera
-2. Keep it **steady** until the sign name appears on screen (~0.5 seconds)
+2. Keep it **steady** until the sign name appears on screen (~1/3 of a second)
 3. **Change** to the next sign in the sequence — holding the same sign does nothing
 4. Complete the full combo sequence to trigger the jutsu
 5. The screen will flash and the jutsu name will appear
@@ -176,7 +176,7 @@ Step 3: 🖐️  Ushi (open palm)
 | Sign flickering between two values | Improve lighting, move hand closer |
 | Combo not triggering | Make sure each sign **confirms** before moving to next |
 | Thumb always showing UP | Normal — thumb is ignored by every sign |
-| Camera not opening | Change `VideoCapture(0)` to `VideoCapture(1)` in main.py |
+| Camera not opening | Run `python main.py --camera 1` to try another webcam |
 | Program crashes on start | Make sure venv is activated before running |
 
 ---

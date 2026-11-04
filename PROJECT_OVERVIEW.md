@@ -6,7 +6,7 @@
 ## Tools Used
 Built using Python, MediaPipe, and OpenCV.
 AI coding assistant Claude was used during development for code generation and debugging support
-but architecture, logic, testing and everything else was designed by myseld
+but architecture, logic, testing and everything else was designed by myself
 
 ---
 
@@ -21,6 +21,7 @@ gesture classification models - all recognition logic is rule-based and custom w
 ## Technologies & Libraries Used
 
 | Tool | Purpose |
+|---|---|
 | Python 3.11 | Core language |
 | MediaPipe | Hand landmark detection (21-point skeleton) |
 | OpenCV (cv2) | Camera input, frame processing, visual overlay |
@@ -111,8 +112,7 @@ jutsu_code/
 ├── signs.py           — Sign pattern definitions and matching logic
 ├── stabilizer.py      — Frame buffer smoothing for sign confirmation
 ├── sequence.py        — Sign change detection and sequence buffer
-├── combos.py          — Combo definitions and matching
-└── assets/            — Images and sprites (Stage 2+)
+└── combos.py          — Combo definitions and matching
 ```
 
 ---
