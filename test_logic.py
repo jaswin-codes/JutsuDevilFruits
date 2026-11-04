@@ -77,7 +77,8 @@ def test_two_hand_signs_combine_left_to_right():
 
 def test_every_combo_has_effect_fields():
     for combo in combos.COMBOS.values():
-        assert set(combo) == {"name", "colour", "sound"}
+        assert set(combo) == {"name", "colour", "sound", "effect"}
+        assert combo["effect"] in {"chidori", "rasengan", "clone", "fireball"}
 
 
 def test_particles_burst_move_and_expire():
@@ -105,3 +106,13 @@ def test_game_scores_only_target_and_ends_on_time():
     assert game.time_left(30.0) == 30.0
     assert not game.on_combo(combos.COMBOS[game.target], now=61.0)  # no points after time up
     assert game.over(61.0) and game.score == 1
+
+
+def test_anime_effects_draw_safely_at_frame_edges():
+    import numpy as np
+    import anime_effects as fx
+    for centre in [(0, 0), (639, 479), (320, 240), (-50, 900)]:
+        frame = np.full((480, 640, 3), 40, np.uint8)
+        fx.draw_chidori(frame, centre, 40, 0.3)
+        if centre == (320, 240):
+            assert frame.max() == 255   # something bright was drawn
