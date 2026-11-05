@@ -92,6 +92,15 @@ def test_clone_blocks_for_three_seconds_then_damage_resumes():
     assert run(b, 10) == 1
 
 
+def test_invisible_freezes_monsters_for_five_seconds():
+    b = make(100)
+    assert b.on_combo("invisible")
+    run(b, 4.9)
+    assert b.monsters[0].x == 100
+    run(b, 1)
+    assert b.monsters[0].x > 100
+
+
 def test_cooldown_rejects_a_second_cast():
     b = make(100)
     assert b.on_combo("chidori")

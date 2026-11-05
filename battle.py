@@ -9,8 +9,9 @@ MONSTER_RADIUS = 0.05  # fraction of frame width
 CONTACT_DAMAGE = 15    # HP a monster takes from you when it reaches the player zone
 FIREBALL_DAMAGE = 120
 MELEE_DPS = 120        # Chidori; Rasengan's damage is scaled by its size
-COOLDOWN = {"fireball": 1.0, "chidori": 5.0, "rasengan": 10.0, "clone": 12.0}
+COOLDOWN = {"fireball": 1.0, "chidori": 5.0, "rasengan": 10.0, "clone": 12.0, "invisible": 15.0}
 CLONE_SECONDS = 3.0
+HIDDEN_SECONDS = 5.0   # invisible: monsters lose track of you and stand still
 WAVE_BREAK = 3.0       # seconds between waves
 MAX_DT = 0.1           # model loads can stall a frame for >1 s; don't let monsters teleport
 
@@ -34,6 +35,7 @@ class Battle:
         self.monsters = []
         self.ready_at = {kind: 0.0 for kind in COOLDOWN}
         self.clone_until = -1.0
+        self.hidden_until = -1.0
         self.hurt_time = -1.0         # battle time a monster last reached you (red flash)
         self.fireball_spent = False   # a cast hits one monster once
         self._start_wave()
@@ -72,6 +74,8 @@ class Battle:
             self.clone_until = self.t + CLONE_SECONDS
         if kind == "fireball":
             self.fireball_spent = False
+        if kind == "invisible":
+            self.hidden_until = self.t + HIDDEN_SECONDS
         return True
 
     def update(self, dt):
@@ -84,7 +88,7 @@ class Battle:
             self._spawn()
         centre, hits = self.w / 2, 0
         stop = (CLONE_LINE if self.t < self.clone_until else 0) * self.w
-        for m in list(self.monsters):
+        for m in [] if self.t < self.hidden_until else list(self.monsters):
             # side -1 walks right toward the centre, side 1 walks left
             m.x = min(m.x + m.speed * dt, centre - stop) if m.side == -1 else max(m.x - m.speed * dt, centre + stop)
             if abs(m.x - centre) < ZONE * self.w:
