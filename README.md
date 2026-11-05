@@ -16,6 +16,7 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
   is sized by how wide you open your mouth and aimed by turning your head
 - Game mode: 60-second challenge with a target jutsu and score
 - Battle mode: AR monster battle in your webcam image, with waves, HP, score and jutsu cooldowns
+- Duel mode: two players side by side in front of one webcam, split screen, fight each other with jutsu
 
 ## Current Sign Set
 
@@ -47,7 +48,9 @@ Add a combo of any length with one line in combos.py.
 - game.py: Timed challenge mode
 - battle.py: Monster battle logic (waves, hits, HP, cooldowns), no camera or drawing
 - battle_view.py: Draws the monsters and battle HUD
-- test_logic.py, test_battle.py: Webcam-free tests
+- duel.py: Two-player duel rules (HP, cooldowns, hits, blocks), no camera or drawing
+- duel_view.py: Draws the duel HUD (HP bars, cooldowns, winner screen)
+- test_logic.py, test_battle.py, test_duel.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -86,12 +89,13 @@ python main.py
    Use another webcam with `python main.py --camera 1`.
    Play the challenge with `python main.py --game` (R restarts when time is up).
    Fight monsters with `python main.py --battle` (R restarts after defeat).
+   Fight a friend with `python main.py --duel` (left half = player 1, right half = player 2; R restarts).
 
 4. Quit by pressing Q in the OpenCV window.
 
 ## Running Tests
 
-The recognition and battle logic are tested without a webcam:
+The recognition, battle and duel logic are tested without a webcam:
 
 ```powershell
 python -m pytest
