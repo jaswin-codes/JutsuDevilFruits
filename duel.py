@@ -6,11 +6,14 @@ from battle import COOLDOWN, MAX_DT, PLAYER_HP
 BODY = 0.12            # fireball target: centre of the opponent's half +- this fraction of frame width
 FRONT = -0.03          # Chidori/Rasengan hit once the ball's edge gets this close to the centre line
                        # (negative: it needn't cross; hands are ~30 px wide two metres from a webcam)
-FIREBALL_DAMAGE = 30
+FIREBALL_DAMAGE = 40   # the six-sign Fireball is the slowest jutsu to perform, so it hits hardest
 MELEE_DPS = 20         # Chidori; Rasengan's damage is scaled by its size
 MELEE_MAX = 35         # most one Chidori/Rasengan cast can deal: no single jutsu wins a round
 SHIELD_SECONDS = 3.0   # Shadow Clone: the clones take every hit
 HIDDEN_SECONDS = 5.0   # invisible: the opponent's fireball can't find you
+COUNTDOWN = 3.0        # 3-2-1 before each round; jutsu do nothing until FIGHT
+ROUND_BREAK = 3.0      # round-winner screen before the next round starts
+ROUNDS_TO_WIN = 2      # best of 3
 
 
 class Fighter:
@@ -27,7 +30,8 @@ class Fighter:
         self.melee_dealt = 0.0           # damage dealt by the current Chidori/Rasengan cast
 
     def over(self):
-        return self.duel.over()
+        """True while jutsu can't be used: countdown, between rounds, match over."""
+        return not self.duel.fighting()
 
     def cooldown_left(self, kind):
         return max(0.0, self.ready_at[kind] - self.duel.t)
@@ -39,7 +43,7 @@ class Fighter:
         return self.duel.t < self.hidden_until
 
     def on_combo(self, kind):
-        """A jutsu was performed. Returns False (and does nothing) while it cools down or the round is over."""
+        """A jutsu was performed. Returns False (and does nothing) while it cools down or nobody may fight."""
         t = self.duel.t
         if self.over() or t < self.ready_at[kind]:
             return False
@@ -56,10 +60,21 @@ class Fighter:
 
 
 class Duel:
+    """A best-of-3 match. self.fighters is replaced at each new round (full HP, no cooldowns)."""
+
     def __init__(self, frame_w, frame_h):
         self.w, self.h = frame_w, frame_h
         self.t = 0.0
+        self.round = 0
+        self.wins = [0, 0]
+        self._next_round()
+
+    def _next_round(self):
+        self.round += 1
         self.fighters = [Fighter(self), Fighter(self)]
+        self.fight_at = self.t + COUNTDOWN
+        self.ko_at = None
+        self.round_winner = None
 
     def body_x(self, i):
         return self.w * (0.25 + 0.5 * i)
@@ -69,16 +84,26 @@ class Duel:
         return 1 if i == 0 else -1
 
     def over(self):
-        return any(f.hp <= 0 for f in self.fighters)
+        """This round has a knockout."""
+        return self.ko_at is not None
+
+    def fighting(self):
+        return not self.over() and self.t >= self.fight_at
 
     def winner(self):
-        """0 or 1, None while fighting or after a double KO."""
-        alive = [i for i, f in enumerate(self.fighters) if f.hp > 0]
-        return alive[0] if self.over() and len(alive) == 1 else None
+        """Player who won this round (0 or 1), None while it is still on."""
+        return self.round_winner
+
+    def match_winner(self):
+        """Player who won the match, None until someone has ROUNDS_TO_WIN rounds."""
+        return next((i for i, n in enumerate(self.wins) if n >= ROUNDS_TO_WIN), None)
 
     def update(self, dt):
-        if not self.over():
-            self.t += min(dt, MAX_DT)
+        if self.match_winner() is not None:
+            return                      # winner screen until R
+        self.t += min(dt, MAX_DT)
+        if self.over() and self.t - self.ko_at >= ROUND_BREAK:
+            self._next_round()
 
     def _hit(self, i, amount):
         """Player i's attack lands on the opponent unless their clones take it."""
@@ -88,6 +113,9 @@ class Duel:
             return False
         foe.hp = max(0.0, foe.hp - amount)
         foe.hurt_time = self.t
+        if foe.hp == 0:
+            self.ko_at, self.round_winner = self.t, i
+            self.wins[i] += 1
         return True
 
     def melee(self, i, centre, radius, dt, power=1.0):
@@ -96,7 +124,7 @@ class Duel:
         assign hands by screen half. Returns True on a hit."""
         me = self.fighters[i]
         reach = (centre[0] - self.w / 2) * self.toward(i) + radius   # ball edge past the line (< 0: short)
-        if self.over() or reach < FRONT * self.w or me.melee_dealt >= MELEE_MAX:
+        if not self.fighting() or reach < FRONT * self.w or me.melee_dealt >= MELEE_MAX:
             return False
         amount = min(MELEE_DPS * power * min(dt, MAX_DT), MELEE_MAX - me.melee_dealt)
         if not self._hit(i, amount):
@@ -109,7 +137,7 @@ class Duel:
         opponent's body band. A shadow-clone block also uses it up; an invisible opponent
         can't be found, so it flies on. Returns True on a hit."""
         me, foe = self.fighters[i], self.fighters[1 - i]
-        if self.over() or me.fireball_spent or foe.hidden():
+        if not self.fighting() or me.fireball_spent or foe.hidden():
             return False
         if abs(centre_x - self.body_x(1 - i)) > BODY * self.w + radius:
             return False

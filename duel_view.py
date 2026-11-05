@@ -45,12 +45,23 @@ def draw_duel(frame, duel, messages=(None, None)):
 
         notice = ("BLOCKED!" if duel.t - f.blocked_time < 0.6 else "SHIELD UP" if f.shielded()
                   else "HIDDEN" if f.hidden() else messages[i])
-        if notice and not duel.over():
-            _centred(frame, notice, cx, h - 150, 0.7, (0, 200, 255), w // 2 - 30)
+        if notice and duel.fighting():
+            _centred(frame, notice, cx, h - 165, 0.7, (0, 200, 255), w // 2 - 30)
 
-    if duel.over():
-        win = duel.winner()
-        lines = ("DRAW" if win is None else f"PLAYER {win + 1} WINS!", "Press R to fight again")
-        for k, line in enumerate(lines):
-            _centred(frame, line, w / 2, h // 2 + 45 * k, 1.3 if k == 0 else 0.8,
-                     (0, 215, 255) if k == 0 else (255, 255, 255))
+    # Round and score between the two HP bars
+    _centred(frame, f"ROUND {duel.round}   {duel.wins[0]} - {duel.wins[1]}", w / 2, h - 26, 0.6, (255, 255, 255))
+
+    champ = duel.match_winner()
+    if champ is not None:
+        lines = (f"PLAYER {champ + 1} WINS THE MATCH!", f"{max(duel.wins)} - {min(duel.wins)}", "Press R for a rematch")
+    elif duel.over():
+        lines = (f"PLAYER {duel.winner() + 1} WINS ROUND {duel.round}", "Next round...")
+    elif duel.t < duel.fight_at:
+        lines = (f"ROUND {duel.round}", str(math.ceil(duel.fight_at - duel.t)))
+    elif duel.t - duel.fight_at < 0.8:
+        lines = ("FIGHT!",)
+    else:
+        lines = ()
+    for k, line in enumerate(lines):
+        _centred(frame, line, w / 2, h // 2 + 50 * k, 1.3 if k == 0 else 1.0,
+                 (0, 215, 255) if k == 0 else (255, 255, 255), w - 40)
