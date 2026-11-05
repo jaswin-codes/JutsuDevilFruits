@@ -36,6 +36,7 @@ def main():
     EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5}
     HAND_EFFECTS = ("chidori", "rasengan")
     palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
+    hand_spread = None     # distance between two palms (Rasengan size), None with one hand
     segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
     face_mesh, mouth = None, None   # built on first Fireball; mouth = last seen lip centre
     particles = ParticleSystem()
@@ -61,12 +62,14 @@ def main():
         if hands:
             hand_points = [detector.get_landmark_list(h, frame.shape) for h in hands]
             # Palm = mean of wrist and knuckles; two hands -> between them (Rasengan)
-            palm_now = np.mean([np.mean([pts[i] for i in (0, 5, 9, 13, 17)], axis=0)
-                                for pts in hand_points], axis=0)
+            centres = [np.mean([pts[i] for i in (0, 5, 9, 13, 17)], axis=0) for pts in hand_points]
+            palm_now = np.mean(centres, axis=0)
             palm_size = np.mean([np.hypot(*np.subtract(pts[0], pts[9])) for pts in hand_points])
+            hand_spread = np.hypot(*np.subtract(*centres[:2])) if len(centres) == 2 else None
         elif sign_box:   # interlocked fingers often hide the hands from MediaPipe
             x1, y1, x2, y2 = sign_box
             palm_now, palm_size = np.array([(x1 + x2) / 2, (y1 + y2) / 2]), (x2 - x1) / 3
+            hand_spread = None
         if hands or sign_box:
             palm = palm_now if palm is None else 0.5 * palm + 0.5 * palm_now   # damp jitter
 
@@ -121,9 +124,11 @@ def main():
             t = now - effect_start
             kind = active_effect["effect"]
             if kind == "chidori":
-                draw_chidori(frame, palm, palm_size * 1.1, t)
-            elif kind == "rasengan":
-                draw_rasengan(frame, palm, palm_size * 1.2, t)
+                draw_chidori(frame, palm, palm_size * 1.1 * (1 + 0.8 * min(t / 3, 1)), t)   # charges up
+            elif kind == "rasengan":   # pull your hands apart to grow it
+                size = palm_size * 1.2 if hand_spread is None else np.clip(
+                    hand_spread * 0.45, palm_size * 0.6, palm_size * 3)
+                draw_rasengan(frame, palm, size, t)
             elif kind == "clone":
                 if segmenter is None:
                     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
