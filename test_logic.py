@@ -69,7 +69,8 @@ def test_sign_model_runs_on_a_frame():
 def test_every_combo_has_effect_fields():
     for combo in combos.COMBOS.values():
         assert set(combo) == {"name", "colour", "sound", "effect"}
-        assert combo["effect"] in {"chidori", "rasengan", "clone", "fireball", "invisible"}
+        assert combo["effect"] in {"chidori", "rasengan", "clone", "fireball", "invisible",
+                                   "substitution"}
 
 
 def test_particles_burst_move_and_expire():

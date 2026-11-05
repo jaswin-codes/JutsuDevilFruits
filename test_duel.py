@@ -171,3 +171,26 @@ def test_duel_view_draws_hud_and_winner():
     knock_out(d, 0)
     draw_duel(frame, d)
     assert frame.any()
+
+
+def test_substitution_takes_one_hit_then_is_used_up():
+    d = ready()
+    p1, p2 = d.fighters
+    p2.on_combo("substitution")
+    p1.on_combo("fireball")
+    assert not d.fireball(0, d.body_x(1), 20)    # the log took it
+    assert p2.hp == PLAYER_HP and p2.swap_time == d.t and not p2.swap_armed()
+    p1.on_combo("chidori")
+    assert d.melee(0, (W / 2, H / 2), 40, DT)    # next hit lands
+
+
+def test_draw_log_draws_then_vanishes():
+    import numpy as np
+    from anime_effects import draw_log
+    frame = np.zeros((H, W, 3), np.uint8)
+    draw_log(frame, (320, 300), 120, 0.1)
+    assert frame.any()
+    frame[:] = 0
+    draw_log(frame, (320, 300), 120, 5.0)        # after its duration: nothing
+    draw_log(frame, (320, 300), 120, -1.0)       # never swapped: nothing
+    assert not frame.any()

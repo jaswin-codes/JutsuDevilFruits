@@ -6,6 +6,7 @@ import math
 import cv2
 
 from battle import COOLDOWN, PLAYER_HP
+from anime_effects import draw_log
 from battle_view import COOLDOWN_LABELS, FONT, _text
 
 BAR_W = 200
@@ -25,6 +26,7 @@ def draw_duel(frame, duel, messages=(None, None)):
     cv2.line(frame, (w // 2, 0), (w // 2, h), (255, 255, 255), 2)
     for i, f in enumerate(duel.fighters):
         half_x0, cx = i * w // 2, w * (0.25 + 0.5 * i)
+        draw_log(frame, (cx, 0.62 * h), 0.18 * w, duel.t - f.swap_time)   # a log took the hit
         if duel.t - f.hurt_time < 0.3:                          # hit: red edge round your half
             cv2.rectangle(frame, (half_x0 + 6, 6), (half_x0 + w // 2 - 6, h - 6), (0, 0, 255), 12)
 
@@ -43,8 +45,9 @@ def draw_duel(frame, duel, messages=(None, None)):
             _text(frame, label, (x0, y0 - 10 - 18 * (len(COOLDOWN) - 1 - j)), 0.42,
                   (100, 255, 100) if left == 0 else (120, 120, 120), 1)
 
-        notice = ("BLOCKED!" if duel.t - f.blocked_time < 0.6 else "SHIELD UP" if f.shielded()
-                  else "HIDDEN" if f.hidden() else messages[i])
+        notice = ("BLOCKED!" if duel.t - f.blocked_time < 0.6 else "SWAPPED!" if duel.t - f.swap_time < 0.8
+                  else "SHIELD UP" if f.shielded() else "HIDDEN" if f.hidden()
+                  else "SUBSTITUTION READY" if f.swap_armed() else messages[i])
         if notice and duel.fighting():
             _centred(frame, notice, cx, h - 165, 0.7, (0, 200, 255), w // 2 - 30)
 

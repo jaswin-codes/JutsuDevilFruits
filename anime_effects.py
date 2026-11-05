@@ -220,3 +220,32 @@ def draw_invisible(frame, mask, plate, t, duration=8.0):
     fade = float(np.clip(t / 0.6, 0, 1) * np.clip((duration - t) / 0.6, 0, 1))   # fade out, then back
     m = cv2.GaussianBlur(mask[y0:y1, x0:x1], (0, 0), 3)[..., None] * fade
     frame[y0:y1, x0:x1] = (region + (background - region) * m).astype(np.uint8)
+
+
+def draw_log(frame, centre, size, t, duration=1.2):
+    """Substitution jutsu: a wooden log left where the user stood, in a puff of smoke.
+    size: log length in pixels; t: seconds since the swap (negative or past duration: nothing)."""
+    if not 0 <= t < duration:
+        return
+    x, y = float(centre[0]), float(centre[1])
+    # Log: a tilted body with a cut end showing tree rings
+    ang = np.deg2rad(-20)
+    ux, uy = np.cos(ang) * size / 2, np.sin(ang) * size / 2         # half-length axis
+    nx, ny = -np.sin(ang) * size / 6, np.cos(ang) * size / 6        # half-thickness axis
+    body = np.array([[x - ux - nx, y - uy - ny], [x + ux - nx, y + uy - ny],
+                     [x + ux + nx, y + uy + ny], [x - ux + nx, y - uy + ny]], np.int32)
+    cv2.fillPoly(frame, [body], (30, 70, 115), cv2.LINE_AA)
+    for k in (-0.5, 0.0, 0.5):                                       # bark lines
+        cv2.line(frame, (int(x - ux + k * nx), int(y - uy + k * ny)),
+                 (int(x + ux + k * nx), int(y + uy + k * ny)), (20, 45, 80), 2, cv2.LINE_AA)
+    end = (int(x + ux), int(y + uy))
+    axes = (max(int(size / 14), 2), max(int(size / 6), 3))
+    cv2.ellipse(frame, end, axes, -20, 0, 360, (110, 165, 210), -1, cv2.LINE_AA)
+    cv2.ellipse(frame, end, (axes[0] // 2, axes[1] // 2), -20, 0, 360, (60, 110, 160), 1, cv2.LINE_AA)
+    # Smoke: grey puffs that swell over the first half second
+    if t < 0.5:
+        rng = np.random.default_rng(7)
+        for dx, dy in rng.uniform(-0.6, 0.6, (10, 2)):
+            c = (int(x + dx * size), int(y + dy * size * 0.6))
+            cv2.circle(frame, c, int(size * (0.15 + 0.5 * t)),
+                       (215, 215, 215) if t < 0.25 else (170, 170, 170), -1, cv2.LINE_AA)

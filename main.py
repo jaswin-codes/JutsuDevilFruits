@@ -11,7 +11,7 @@ from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
 from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
-                           fireball_path, draw_invisible, BackgroundPlate, CLONE_OFFSETS)
+                           fireball_path, draw_invisible, draw_log, BackgroundPlate, CLONE_OFFSETS)
 from game import Game
 from battle import Battle
 from battle_view import draw_battle
@@ -19,7 +19,8 @@ from duel import Duel
 from duel_view import draw_duel
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
-EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0}
+EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
+                  "substitution": 1.5}
 HAND_EFFECTS = ("chidori", "rasengan")
 MISS_LIMIT = 15        # frames with no hand or sign (~0.5s) before the combo is wiped
 PALM_POINTS = (0, 5, 9, 13, 17)   # wrist and knuckles
@@ -216,6 +217,9 @@ def main():
                 draw_invisible(frame, own, plate, t, EFFECT_SECONDS[kind])
             elif kind == "clone":   # drawn into the caster's columns only (views write through)
                 draw_clones(frame[:, p.x0:p.x1], clean[:, p.x0:p.x1], mask[:, p.x0:p.x1], t, EFFECT_SECONDS[kind])
+            elif kind == "substitution":
+                if not (battle or duel):   # free play: swap with a log on the spot; in a fight it waits for a hit
+                    draw_log(frame, p.palm, p.palm_size * 5, t, EFFECT_SECONDS[kind])
             elif kind == "fireball":
                 origin = p.mouth if p.mouth is not None else p.palm
                 direction = p.fire_dir

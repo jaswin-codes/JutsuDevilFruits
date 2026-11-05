@@ -9,6 +9,8 @@ COMBOS = {
     ("Ushi", "U", "Saru"):                       {"name": "CHIDORI",                "colour": (0, 255, 255),  "sound": (1800, 900), "effect": "chidori"},
     # Hiding with Camouflage: our own pick from the signs no other jutsu uses
     ("Ne", "Inu", "Tori"):                       {"name": "HIDING WITH CAMOUFLAGE",  "colour": (200, 200, 200), "sound": (900, 200),  "effect": "invisible"},
+    # Substitution: Tatsu is the one sign no other jutsu uses, so this can't fire halfway through another
+    ("Tatsu", "Ne"):                             {"name": "SUBSTITUTION JUTSU",     "colour": (40, 90, 140),  "sound": (500, 250),  "effect": "substitution"},
     # Rasengan has no signs in canon: prayer hands (Gassho) start it
     ("Gassho",):                                 {"name": "RASENGAN",               "colour": (255, 150, 40), "sound": (400, 1200), "effect": "rasengan"},
 }

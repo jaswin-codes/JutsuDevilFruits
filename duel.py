@@ -1,7 +1,7 @@
 # duel.py - two-player jutsu duel: two people side by side in front of one webcam, the screen
 # split down the middle (player 0 = left half, player 1 = right half). Pure rules (no camera,
 # no drawing) so they can be unit-tested. Positions are frame pixels.
-from battle import COOLDOWN, MAX_DT, PLAYER_HP
+from battle import COOLDOWN, MAX_DT, PLAYER_HP, SUB_SECONDS
 
 BODY = 0.12            # fireball target: centre of the opponent's half +- this fraction of frame width
 FRONT = -0.03          # Chidori/Rasengan hit once the ball's edge gets this close to the centre line
@@ -24,7 +24,8 @@ class Fighter:
         self.duel = duel                 # shared clock: cooldowns and shields of both players agree
         self.hp = PLAYER_HP
         self.ready_at = {kind: 0.0 for kind in COOLDOWN}
-        self.shield_until = self.hidden_until = -1.0
+        self.shield_until = self.hidden_until = self.sub_until = -1.0
+        self.swap_time = -9.0            # duel time a log took a hit in your place
         self.hurt_time = self.blocked_time = -1.0   # duel time of the last hit taken / blocked
         self.fireball_spent = True       # a cast hits once
         self.melee_dealt = 0.0           # damage dealt by the current Chidori/Rasengan cast
@@ -42,6 +43,9 @@ class Fighter:
     def hidden(self):
         return self.duel.t < self.hidden_until
 
+    def swap_armed(self):
+        return self.duel.t < self.sub_until
+
     def on_combo(self, kind):
         """A jutsu was performed. Returns False (and does nothing) while it cools down or nobody may fight."""
         t = self.duel.t
@@ -52,6 +56,8 @@ class Fighter:
             self.shield_until = t + SHIELD_SECONDS
         elif kind == "invisible":
             self.hidden_until = t + HIDDEN_SECONDS
+        elif kind == "substitution":
+            self.sub_until = t + SUB_SECONDS
         elif kind == "fireball":
             self.fireball_spent = False
         else:
@@ -106,10 +112,13 @@ class Duel:
             self._next_round()
 
     def _hit(self, i, amount):
-        """Player i's attack lands on the opponent unless their clones take it."""
+        """Player i's attack lands on the opponent unless their clones or a substitution log take it."""
         foe = self.fighters[1 - i]
         if foe.shielded():
             foe.blocked_time = self.t
+            return False
+        if foe.swap_armed():             # one hit lands on the log, then the swap is used up
+            foe.sub_until, foe.swap_time = -1.0, self.t
             return False
         foe.hp = max(0.0, foe.hp - amount)
         foe.hurt_time = self.t
