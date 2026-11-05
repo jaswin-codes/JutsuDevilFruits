@@ -105,11 +105,49 @@ Pull your hands apart to grow it, or bring them together to shrink it.
 
 ---
 
+### 👻 Hiding with Camouflage (invisibility)
+**Sequence:** `Ne → Inu → Tori` (Rat, Dog, Bird). These signs are our own pick, not from the anime.
+
+**Effect:** You fade out for 8 seconds: the app paints the room behind you over your body, with a faint
+heat-haze ripple where you stand. In battle mode the monsters lose track of you and stand still for 5 seconds.
+
+**Setup:** the app has to have seen the room without you. It learns the background all the time, so
+step out of the picture for a second (or move to the other side) before you use it. Spots it has never
+seen empty show as a blur. Keep the camera still: if it moves, step out again so it relearns.
+
+---
+
 ## Game Mode
 
 Run `python main.py --game`. A target jutsu and its signs appear at the bottom.
 Perform it to score a point and get a new target. You have 60 seconds;
 press **R** to play again.
+
+---
+
+## Battle Mode
+
+Run `python main.py --battle`. Your webcam image is the arena and you are the hero:
+monsters walk in from both sides of the screen toward the middle. Each one that reaches
+you costs 15 HP (you have 100). Clear a wave to start the next, which brings more,
+tougher and faster monsters. Press **R** to fight again after a defeat.
+
+| Jutsu | Role | How it hits | Cooldown |
+|---|---|---|---|
+| Fireball | Ranged | Turn your head toward a side: hits the nearest monster on that side. Facing the camera hits the nearest monster on either side. | 1 s |
+| Chidori | Melee | Damages any monster your palm's lightning ball touches. Reach toward them. | 5 s |
+| Rasengan | Charged melee | Same as Chidori, but a bigger ball (hands further apart) hits harder. | 10 s |
+| Shadow Clone | Block | For 3 s your clones hold the monsters back and you take no damage. | 12 s |
+| Hiding with Camouflage | Escape | Monsters lose track of you and stand still for 5 s. | 15 s |
+
+A jutsu still on cooldown shows a "cooling down" notice and does nothing; its timer is at
+the bottom right. Your HP, wave and score are at the bottom left.
+
+Tips:
+- Stand in the middle of the picture: the "you" zone is the centre of the screen.
+- Wave 1 monsters take about 9 s to reach you, enough for the six-sign Fireball.
+  Start it early, and save Shadow Clone for when several monsters are close.
+- Keep your hands low to reach the monsters with Chidori and Rasengan.
 
 ---
 

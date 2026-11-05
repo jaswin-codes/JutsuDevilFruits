@@ -10,11 +10,12 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
 - Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
-  Shadow Clones of you (selfie segmentation), and a Fireball from your mouth (face mesh),
+  Shadow Clones of you (selfie segmentation), invisibility against a learned background, and a Fireball from your mouth (face mesh),
   plus particle bursts and sound (sound on Windows)
 - Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
   is sized by how wide you open your mouth and aimed by turning your head
 - Game mode: 60-second challenge with a target jutsu and score
+- Battle mode: AR monster battle in your webcam image, with waves, HP, score and jutsu cooldowns
 
 ## Current Sign Set
 
@@ -29,6 +30,7 @@ Sign orders follow the anime:
 - Hitsuji -> Mi -> Tora: SHADOW CLONE JUTSU
 - Ushi -> U -> Saru: CHIDORI
 - Gassho: RASENGAN (no canon signs)
+- Ne -> Inu -> Tori: HIDING WITH CAMOUFLAGE (invisibility; our own sign pick)
 
 Add a combo of any length with one line in combos.py.
 
@@ -43,7 +45,9 @@ Add a combo of any length with one line in combos.py.
 - effects.py: Particle bursts and generated jutsu sounds
 - anime_effects.py: Chidori, Rasengan, Shadow Clone and Fireball drawing (numpy + OpenCV)
 - game.py: Timed challenge mode
-- test_logic.py: Webcam-free tests
+- battle.py: Monster battle logic (waves, hits, HP, cooldowns), no camera or drawing
+- battle_view.py: Draws the monsters and battle HUD
+- test_logic.py, test_battle.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -81,12 +85,13 @@ python main.py
 
    Use another webcam with `python main.py --camera 1`.
    Play the challenge with `python main.py --game` (R restarts when time is up).
+   Fight monsters with `python main.py --battle` (R restarts after defeat).
 
 4. Quit by pressing Q in the OpenCV window.
 
 ## Running Tests
 
-The recognition logic is tested without a webcam:
+The recognition and battle logic are tested without a webcam:
 
 ```powershell
 python -m pytest
