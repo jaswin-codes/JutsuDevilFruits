@@ -34,6 +34,7 @@ class Battle:
         self.monsters = []
         self.ready_at = {kind: 0.0 for kind in COOLDOWN}
         self.clone_until = -1.0
+        self.hurt_time = -1.0         # battle time a monster last reached you (red flash)
         self.fireball_spent = False   # a cast hits one monster once
         self._start_wave()
 
@@ -89,6 +90,7 @@ class Battle:
             if abs(m.x - centre) < ZONE * self.w:
                 self.monsters.remove(m)
                 self.hp = max(0, self.hp - CONTACT_DAMAGE)
+                self.hurt_time = self.t
                 hits += 1
         if not self.monsters and not self.to_spawn:
             self.score += 50 * self.wave
