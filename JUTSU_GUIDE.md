@@ -113,6 +113,31 @@ press **R** to play again.
 
 ---
 
+## Battle Mode
+
+Run `python main.py --battle`. Your webcam image is the arena and you are the hero:
+monsters walk in from both sides of the screen toward the middle. Each one that reaches
+you costs 15 HP (you have 100). Clear a wave to start the next, which brings more,
+tougher and faster monsters. Press **R** to fight again after a defeat.
+
+| Jutsu | Role | How it hits | Cooldown |
+|---|---|---|---|
+| Fireball | Ranged | Turn your head toward a side: hits the nearest monster on that side. Facing the camera hits the nearest monster on either side. | 1 s |
+| Chidori | Melee | Damages any monster your palm's lightning ball touches. Reach toward them. | 5 s |
+| Rasengan | Charged melee | Same as Chidori, but a bigger ball (hands further apart) hits harder. | 10 s |
+| Shadow Clone | Block | For 3 s your clones hold the monsters back and you take no damage. | 12 s |
+
+A jutsu still on cooldown shows a "cooling down" notice and does nothing; its timer is at
+the bottom right. Your HP, wave and score are at the bottom left.
+
+Tips:
+- Stand in the middle of the picture: the "you" zone is the centre of the screen.
+- Wave 1 monsters take about 9 s to reach you, enough for the six-sign Fireball.
+  Start it early, and save Shadow Clone for when several monsters are close.
+- Keep your hands low to reach the monsters with Chidori and Rasengan.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
