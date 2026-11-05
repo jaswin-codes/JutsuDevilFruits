@@ -76,7 +76,9 @@ sign, see the sign chart in that repository's README.
 ### 🔥 Katon — Fireball Jutsu
 **Sequence:** `Mi → Tora → Saru → I → Uma → Tora` (Snake, Tiger, Monkey, Boar, Horse, Tiger)
 
-**Effect:** A fireball swells at your mouth, then rushes at the camera. Face the camera so your mouth is found.
+**Effect:** A fireball swells at your mouth, then launches. Face the camera to blast it at the screen, or turn your head
+left or right to send it flying that way. Open your mouth wide while it gathers for a bigger fireball.
+Aim and size lock in when it launches (half a second after the jutsu fires).
 
 ---
 
@@ -91,6 +93,7 @@ sign, see the sign chart in that repository's README.
 **Sequence:** `Ushi → U → Saru` (Ox, Hare, Monkey)
 
 **Effect:** A crackling white-blue lightning ball sits in your palm and follows it until you lower your hand.
+It charges up, growing for 3 seconds while you hold it. Bring your hand closer to the camera to make it bigger too.
 
 ---
 
@@ -98,6 +101,7 @@ sign, see the sign chart in that repository's README.
 **Sequence:** `Gassho` (prayer hands). Rasengan has no hand signs in the anime.
 
 **Effect:** A spinning blue chakra sphere forms between your hands and follows them until you lower them.
+Pull your hands apart to grow it, or bring them together to shrink it.
 
 ---
 

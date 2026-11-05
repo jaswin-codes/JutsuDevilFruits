@@ -12,6 +12,8 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
   Shadow Clones of you (selfie segmentation), and a Fireball from your mouth (face mesh),
   plus particle bursts and sound (sound on Windows)
+- Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
+  is sized by how wide you open your mouth and aimed by turning your head
 - Game mode: 60-second challenge with a target jutsu and score
 
 ## Current Sign Set
