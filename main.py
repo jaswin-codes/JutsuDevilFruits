@@ -10,14 +10,19 @@ from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
 from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
-                           CLONE_OFFSETS)
+                           fireball_path, CLONE_OFFSETS)
 from game import Game
+from battle import Battle
+from battle_view import draw_battle
 
 def main():
     parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
-    parser.add_argument("--game", action="store_true",
-                        help="60-second challenge: perform the target jutsu for points (R restarts)")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--game", action="store_true",
+                      help="60-second challenge: perform the target jutsu for points (R restarts)")
+    mode.add_argument("--battle", action="store_true",
+                      help="AR monster battle: defeat waves of monsters with jutsu (R restarts)")
     args = parser.parse_args()
 
     cap = cv2.VideoCapture(args.camera)
@@ -43,6 +48,8 @@ def main():
     fire_scale, fire_dir = 1.0, 0.0   # mouth opening and head turn, locked at launch
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if args.game else None
+    battle = None          # built on the first frame (needs the frame size)
+    message, message_until = None, 0.0   # short battle notice, e.g. a cooldown
     last_tick = time.monotonic()
     MISS_LIMIT = 15        # frames with no hand or sign (~0.5s) before the combo is wiped
     missed_frames = 0
@@ -57,6 +64,8 @@ def main():
             break
 
         frame = cv2.flip(frame, 1)
+        if args.battle and battle is None:
+            battle = Battle(frame.shape[1], frame.shape[0])
         clean = frame.copy()   # without landmarks/HUD, for effects that copy the user
         raw_sign, sign_box = signs.detect(clean)
         frame, hands = detector.find_hands(frame)
@@ -95,7 +104,13 @@ def main():
                 cv2.putText(frame, f"Seq: {' > '.join(sequence)}", (20, 130),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (200, 200, 0), 2)
 
-                if combo and combo is not active_effect:
+                if combo and combo is not active_effect and battle and not battle.on_combo(combo["effect"]):
+                    # Cooling down: drop the combo but keep last_sign, so a held sign can't re-fire every frame
+                    sequencer.sequence.clear()
+                    if not battle.over():
+                        message = f"{combo['name']} - cooling down {battle.cooldown_left(combo['effect']):.0f}s"
+                        message_until = time.monotonic() + 1.5
+                elif combo and combo is not active_effect:
                     active_effect = combo
                     effect_start  = time.monotonic()
                     particles.burst(palm, combo["colour"])
@@ -122,15 +137,22 @@ def main():
 
         # --- Visual effect overlay ---
         now = time.monotonic()
+        dt = now - last_tick
+        killed = []            # monster positions defeated this frame (battle mode)
         if active_effect:
             t = now - effect_start
             kind = active_effect["effect"]
             if kind == "chidori":
-                draw_chidori(frame, palm, palm_size * 1.1 * (1 + 0.8 * min(t / 3, 1)), t)   # charges up
+                radius = palm_size * 1.1 * (1 + 0.8 * min(t / 3, 1))   # charges up
+                draw_chidori(frame, palm, radius, t)
+                if battle:
+                    killed = battle.melee(palm, radius, dt)
             elif kind == "rasengan":   # pull your hands apart to grow it
                 size = palm_size * 1.2 if hand_spread is None else np.clip(
                     hand_spread * 0.45, palm_size * 0.6, palm_size * 3)
                 draw_rasengan(frame, palm, size, t)
+                if battle:   # bigger Rasengan hits harder
+                    killed = battle.melee(palm, size, dt, power=size / (palm_size * 1.2))
             elif kind == "clone":
                 if segmenter is None:
                     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
@@ -144,8 +166,12 @@ def main():
                     if faces:
                         mouth, fire_scale, fire_dir = face_aim([(p.x, p.y) for p in faces[0].landmark])
                         mouth = mouth * (frame.shape[1], frame.shape[0])
-                draw_fireball(frame, mouth if mouth is not None else palm, t, EFFECT_SECONDS[kind],
-                              fire_scale, fire_dir)
+                origin = mouth if mouth is not None else palm
+                draw_fireball(frame, origin, t, EFFECT_SECONDS[kind], fire_scale, fire_dir)
+                if battle and t >= 0.5:   # only the launched fireball hits
+                    centre, radius = fireball_path(origin, t, EFFECT_SECONDS[kind], fire_scale, fire_dir,
+                                                   frame.shape)
+                    killed = battle.fireball(origin[0], centre[0], radius, fire_dir)
 
             if t < 2.0:   # jutsu name banner near the top
                 text = active_effect["name"]
@@ -157,7 +183,13 @@ def main():
                 active_effect = None
                 sequencer.reset()
 
-        particles.update(now - last_tick)
+        if battle:
+            battle.update(dt)
+            for pos in killed:
+                particles.burst(pos, (180, 60, 160), count=150, speed=400)
+            draw_battle(frame, battle, message if now < message_until else None)
+
+        particles.update(dt)
         last_tick = now
         particles.draw(frame)
 
@@ -180,6 +212,8 @@ def main():
             break
         if key == ord('r') and game:
             game = Game(COMBOS, time.monotonic())
+        if key == ord('r') and battle:
+            battle = Battle(frame.shape[1], frame.shape[0])
 
     cap.release()
     cv2.destroyAllWindows()

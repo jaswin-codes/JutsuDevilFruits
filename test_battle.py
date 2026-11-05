@@ -121,3 +121,16 @@ def test_huge_dt_is_clamped():
     b = make(50)
     b.update(5.0)
     assert b.monsters[0].x == 50 + 30 * battle.MAX_DT
+
+
+def test_draw_battle_runs_on_a_plain_frame():
+    import numpy as np
+    from battle_view import draw_battle
+    b = make(100, 500)
+    b.monsters[0].hit_time = b.t      # hit flash
+    b.hurt_time = b.t
+    frame = np.zeros((H, W, 3), np.uint8)
+    draw_battle(frame, b, "CHIDORI - cooling down 3s")
+    b.hp = 0
+    draw_battle(frame, b)             # game-over screen
+    assert frame.any()

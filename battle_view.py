@@ -48,7 +48,8 @@ def draw_monster(frame, m, r, t):
 
 
 def draw_battle(frame, battle, message=None):
-    """Monsters, player HP/wave/score (top-right), cooldowns (bottom-right), game-over screen."""
+    """Monsters, HP/wave/score (bottom-left: the top holds the sign readout and jutsu banner),
+    cooldowns (bottom-right) and the game-over screen."""
     h, w = frame.shape[:2]
     for m in battle.monsters:
         draw_monster(frame, m, battle.radius, battle.t)
@@ -57,7 +58,7 @@ def draw_battle(frame, battle, message=None):
         cv2.rectangle(frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 12)
 
     # Player HP bar
-    x1, x0, y0 = w - 20, w - 220, 20
+    x0, x1, y0 = 20, 220, h - 66
     frac = battle.hp / PLAYER_HP
     cv2.rectangle(frame, (x0, y0), (x1, y0 + 18), (40, 40, 40), -1)
     cv2.rectangle(frame, (x0, y0), (x0 + int((x1 - x0) * frac), y0 + 18),
