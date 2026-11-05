@@ -151,6 +151,34 @@ Tips:
 
 ---
 
+## Duel Mode
+
+Run `python main.py --duel`. Two players stand side by side in front of one webcam; the
+screen splits down the middle. **Player 1 is the left half, player 2 the right half**, and
+each player's signs, hands and jutsu are read from their own half only. Both start with
+100 HP; the round ends when one reaches 0. Press **R** for a new round.
+
+| Jutsu | How it hits | Damage | Cooldown |
+|---|---|---|---|
+| Fireball | Flies across to the other player and hits once when it reaches them. Facing the camera aims it straight at your opponent; turning your head away sends it off your own side. | 30 | 1 s |
+| Chidori | Reach toward the centre line: hits while the lightning ball crosses into the other half. | 20/s, max 35 per cast | 5 s |
+| Rasengan | Same as Chidori; a bigger ball (hands further apart) hits faster. | up to 50/s, max 35 per cast | 10 s |
+| Shadow Clone | Your clones take every hit for 3 s, including a fireball, which is used up. | - | 12 s |
+| Hiding with Camouflage | The opponent's fireball can't find you for 5 s (Chidori and Rasengan still can). | - | 15 s |
+
+Each player's HP bar and cooldowns are in their bottom corner; a red edge round your half
+means you were hit.
+
+Tips:
+- Stand in the middle of your own half and keep your hands on your side of the line;
+  hands that cross the line are counted as the other player's.
+- Leave some space between you: the sign model was trained on one person per picture, so
+  two people overlapping can confuse it.
+- No single jutsu wins a round: mix fast Chidori pokes with a well-timed Fireball, and keep
+  Shadow Clone ready for the opponent's Fireball.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
