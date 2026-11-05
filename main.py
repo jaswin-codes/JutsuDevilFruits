@@ -1,6 +1,7 @@
 import argparse
 import time
 import cv2
+import mediapipe as mp
 import numpy as np
 from hand_detector import HandDetector
 from signs import match_sign, combine_signs
@@ -8,6 +9,7 @@ from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
+from anime_effects import draw_chidori, draw_rasengan, draw_clones, draw_fireball, CLONE_OFFSETS
 from game import Game
 
 def main():
@@ -29,7 +31,12 @@ def main():
 
     active_effect = None   # combo dict from combos.py while its effect plays
     effect_start  = 0.0
-    EFFECT_SECONDS = 2.0
+    # Max seconds per effect; hand-held ones also end once the hand is gone
+    EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5}
+    HAND_EFFECTS = ("chidori", "rasengan")
+    palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
+    segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
+    face_mesh, mouth = None, None   # built on first Fireball; mouth = last seen lip centre
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if args.game else None
     last_tick = time.monotonic()
@@ -46,6 +53,7 @@ def main():
             break
 
         frame = cv2.flip(frame, 1)
+        clean = frame.copy()   # without landmarks/HUD, for effects that copy the user
         frame, hands = detector.find_hands(frame)
 
         if hands:
@@ -54,6 +62,11 @@ def main():
             hand_points = sorted((detector.get_landmark_list(h, frame.shape) for h in hands),
                                  key=lambda pts: pts[0][0])
             hand_fingers = [detector.get_finger_states(pts) for pts in hand_points]
+            # Palm = mean of wrist and knuckles; two hands -> between them (Rasengan)
+            palm_now = np.mean([np.mean([pts[i] for i in (0, 5, 9, 13, 17)], axis=0)
+                                for pts in hand_points], axis=0)
+            palm = palm_now if palm is None else 0.5 * palm + 0.5 * palm_now   # damp jitter
+            palm_size = np.mean([np.hypot(*np.subtract(pts[0], pts[9])) for pts in hand_points])
             fingers   = hand_fingers[0]   # finger panel shows the left-most hand
             raw_sign  = combine_signs([match_sign(f) for f in hand_fingers])
             stable_sign = stabilizer.update(raw_sign)
@@ -74,8 +87,11 @@ def main():
                 if combo and combo is not active_effect:
                     active_effect = combo
                     effect_start  = time.monotonic()
-                    palm_centres = [pts[9] for pts in hand_points]   # 9 = middle finger base
-                    particles.burst(np.mean(palm_centres, axis=0), combo["colour"])
+                    particles.burst(palm, combo["colour"])
+                    if combo["effect"] == "clone":   # smoke puff where each clone appears
+                        for offset in CLONE_OFFSETS:
+                            particles.burst((palm[0] + offset * frame.shape[1], palm[1]),
+                                            (170, 170, 170), count=120, speed=350)
                     play_sound(*combo["sound"])
                     if game:
                         game.on_combo(combo, time.monotonic())
@@ -100,25 +116,39 @@ def main():
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         # --- Visual effect overlay ---
+        now = time.monotonic()
         if active_effect:
-            alpha = max(0.0, 1 - (time.monotonic() - effect_start) / EFFECT_SECONDS)
-            overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 0), (frame.shape[1], frame.shape[0]),
-                          active_effect["colour"], -1)
-            cv2.addWeighted(overlay, alpha * 0.6, frame, 1 - alpha * 0.6, 0, frame)
+            t = now - effect_start
+            kind = active_effect["effect"]
+            if kind == "chidori":
+                draw_chidori(frame, palm, palm_size * 1.1, t)
+            elif kind == "rasengan":
+                draw_rasengan(frame, palm, palm_size * 1.2, t)
+            elif kind == "clone":
+                if segmenter is None:
+                    segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
+                mask = segmenter.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).segmentation_mask
+                draw_clones(frame, clean, mask, t, EFFECT_SECONDS[kind])
+            elif kind == "fireball":
+                if face_mesh is None:
+                    face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=1)
+                faces = face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks
+                if faces:   # 13/14 = inner upper/lower lip
+                    lips = [faces[0].landmark[i] for i in (13, 14)]
+                    mouth = (np.mean([p.x for p in lips]) * frame.shape[1],
+                             np.mean([p.y for p in lips]) * frame.shape[0])
+                draw_fireball(frame, mouth if mouth is not None else palm, t, EFFECT_SECONDS[kind])
 
-            text = active_effect["name"]
-            text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.2, 2)[0]
-            text_x = (frame.shape[1] - text_size[0]) // 2
-            text_y = (frame.shape[0] - text_size[1]) // 2 + 20
-            cv2.putText(frame, text, (text_x, text_y),
-                        cv2.FONT_HERSHEY_DUPLEX, 1.2, (255, 255, 255), 3)
+            if t < 2.0:   # jutsu name banner near the top
+                text = active_effect["name"]
+                text_size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.2, 2)[0]
+                cv2.putText(frame, text, ((frame.shape[1] - text_size[0]) // 2, 60),
+                            cv2.FONT_HERSHEY_DUPLEX, 1.2, (255, 255, 255), 3)
 
-            if alpha == 0:
+            if t > EFFECT_SECONDS[kind] or (kind in HAND_EFFECTS and missed_frames >= MISS_LIMIT):
                 active_effect = None
                 sequencer.reset()
 
-        now = time.monotonic()
         particles.update(now - last_tick)
         last_tick = now
         particles.draw(frame)

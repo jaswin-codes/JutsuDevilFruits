@@ -115,6 +115,14 @@ Particle bursts and generated sounds on trigger, and a 60-second challenge mode.
 
 ---
 
+### Stage 10 - Anime-Style Effects
+The full-screen flash is replaced by per-jutsu effects: a Chidori lightning ball and a
+Rasengan swirl that track the palm, Shadow Clones cut out with MediaPipe selfie
+segmentation, and a Fireball from the mouth found with MediaPipe face mesh.
+Segmentation and face mesh only run while their effect plays.
+
+---
+
 ## Project Architecture
 
 ```
@@ -126,6 +134,7 @@ jutsu_code/
 ├── sequence.py        — Sign change detection and sequence buffer
 ├── combos.py          — Combo definitions and matching
 ├── effects.py         — Particle bursts and generated sounds
+├── anime_effects.py   — Chidori, Rasengan, Shadow Clone, Fireball drawing
 ├── game.py            — Timed challenge mode
 └── test_logic.py      — Webcam-free tests
 ```
@@ -159,9 +168,8 @@ jutsu_code/
 
 ## Current Status
 
-Stages 1–9 complete: four combos (one two-handed) with flash, particle and sound
-effects, plus a challenge mode. Next: an extended sign library, sprite overlays,
-and multiplayer.
+Stages 1–10 complete: four combos (one two-handed) with anime-style, particle and sound
+effects, plus a challenge mode. Next: real two-hand Naruto signs from a trained model.
 
 ---
 
