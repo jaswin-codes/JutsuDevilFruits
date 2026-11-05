@@ -5,11 +5,12 @@ import math
 import cv2
 import numpy as np
 
+from anime_effects import draw_log
 from battle import COOLDOWN, PLAYER_HP
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 COOLDOWN_LABELS = {"fireball": "FIREBALL", "chidori": "CHIDORI", "rasengan": "RASENGAN", "clone": "CLONE",
-                   "invisible": "INVISIBLE"}
+                   "invisible": "INVISIBLE", "substitution": "SUBSTITUTE"}
 
 
 def _text(frame, text, org, scale, colour, thick=2):
@@ -55,6 +56,7 @@ def draw_battle(frame, battle, message=None):
     for m in battle.monsters:
         draw_monster(frame, m, battle.radius, battle.t)
 
+    draw_log(frame, (w / 2, 0.65 * h), 0.18 * w, battle.t - battle.swap_time)   # a monster hit your log
     if battle.t - battle.hurt_time < 0.3:                  # hit: red frame edge
         cv2.rectangle(frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 12)
 

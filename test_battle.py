@@ -144,3 +144,21 @@ def test_draw_battle_runs_on_a_plain_frame():
     b.hp = 0
     draw_battle(frame, b)             # game-over screen
     assert frame.any()
+
+
+def test_substitution_log_takes_the_next_hit_only():
+    b = make(W / 2 - 0.13 * W, W / 2 - 0.2 * W)   # two monsters about to reach you
+    assert b.on_combo("substitution")
+    run(b, 0.5)
+    assert b.hp == battle.PLAYER_HP and b.swap_time >= 0   # first one hit the log
+    run(b, 3)
+    assert b.hp == battle.PLAYER_HP - battle.CONTACT_DAMAGE  # swap used up: second one hurts
+
+
+def test_substitution_wears_off():
+    b = make()
+    b.on_combo("substitution")
+    run(b, battle.SUB_SECONDS + 0.1)
+    b.monsters = [Monster(W / 2 - 0.13 * W, 0.65 * H, -1, 100, 30)]
+    run(b, 0.5)
+    assert b.hp == battle.PLAYER_HP - battle.CONTACT_DAMAGE

@@ -11,7 +11,7 @@ from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
 from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
-                           fireball_path, draw_invisible, BackgroundPlate, CLONE_OFFSETS)
+                           fireball_path, draw_invisible, draw_log, BackgroundPlate, CLONE_OFFSETS)
 from game import Game
 from battle import Battle
 from battle_view import draw_battle
@@ -19,7 +19,8 @@ from duel import Duel
 from duel_view import draw_duel
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
-EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0}
+EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
+                  "substitution": 1.5}
 HAND_EFFECTS = ("chidori", "rasengan")
 MISS_LIMIT = 15        # frames with no hand or sign (~0.5s) before the combo is wiped
 PALM_POINTS = (0, 5, 9, 13, 17)   # wrist and knuckles
@@ -43,10 +44,18 @@ class Player:
         self.message, self.message_until = None, 0.0   # short notice, e.g. a cooldown
 
 
+MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
+         ("game", "CHALLENGE", "60 s, perform the target jutsu"),
+         ("battle", "MONSTER BATTLE", "survive waves of monsters"),
+         ("duel", "DUEL", "2 players side by side, best of 3")]
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition")
+    parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition. "
+                                                 "Without a mode flag a start menu picks the mode.")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
     mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--free", action="store_true", help="free play: every jutsu, no rules")
     mode.add_argument("--game", action="store_true",
                       help="60-second challenge: perform the target jutsu for points (R restarts)")
     mode.add_argument("--battle", action="store_true",
@@ -54,45 +63,83 @@ def main():
     mode.add_argument("--duel", action="store_true",
                       help="two players side by side, split screen: fight each other with jutsu (R restarts)")
     args = parser.parse_args()
+    mode = next((m for m, *_ in MODES if getattr(args, m)), None)
 
     cap = cv2.VideoCapture(args.camera)
     if not cap.isOpened():
         raise SystemExit(f"Could not open camera {args.camera}. Try --camera 1.")
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    signs = SignModel()   # real Naruto signs (both hands as one sign); loaded once for every mode
 
-    signs    = SignModel()                                  # real Naruto signs (both hands as one sign)
-    detector = HandDetector(max_hands=4 if args.duel else 2)   # palm position for the effects
-    ui = 0.7 if args.duel else 1.0                          # text scale: a duel half is 320 px wide
+    print("Jutsu Code")
+    print("Press Q to quit, M for the menu.")
+    while mode or (mode := menu(cap)):
+        if play(cap, signs, mode) == "quit":
+            break
+        mode = None       # M pressed: back to the menu
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+def menu(cap):
+    """Start menu over the live camera image. Returns the picked mode, or None to quit."""
+    while True:
+        success, frame = cap.read()
+        if not success:
+            print("Camera stopped sending frames.")
+            return None
+        frame = (cv2.flip(frame, 1) * 0.35).astype(np.uint8)   # dimmed, so the text stands out
+        w = frame.shape[1]
+        title = "JUTSU CODE"
+        size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 1.8, 3)[0]
+        cv2.putText(frame, title, ((w - size[0]) // 2, 90), cv2.FONT_HERSHEY_DUPLEX, 1.8, (0, 165, 255), 3)
+        for k, (_, name, about) in enumerate(MODES):
+            y = 170 + 70 * k
+            cv2.putText(frame, f"{k + 1}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
+            cv2.putText(frame, about, (150, y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
+        cv2.putText(frame, "Press 1-4 to start, Q to quit, M in a mode returns here", (60, 455),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 255), 1)
+        cv2.imshow("Jutsu Code", frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            return None
+        if ord('1') <= key < ord('1') + len(MODES):
+            return MODES[key - ord('1')][0]
+
+
+def play(cap, signs, mode):
+    """Runs one mode until Q ("quit") or M ("menu")."""
+    duel_mode = mode == "duel"
+    detector = HandDetector(max_hands=4 if duel_mode else 2)   # palm position for the effects
+    ui = 0.7 if duel_mode else 1.0                          # text scale: a duel half is 320 px wide
 
     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
     plate = BackgroundPlate()   # empty scene for invisibility, learned from the frames
     frame_no = 0
     face_mesh = None            # built on first Fireball
     particles = ParticleSystem()
-    game = Game(COMBOS, time.monotonic()) if args.game else None
+    game = Game(COMBOS, time.monotonic()) if mode == "game" else None
     players = battle = duel = None   # built on the first frame (need the frame size)
     last_tick = time.monotonic()
-
-    print("Jutsu Code")
-    print("Press Q to quit.")
 
     while True:
         success, frame = cap.read()
         if not success:
             print("Camera stopped sending frames.")
-            break
+            return "quit"
 
         frame = cv2.flip(frame, 1)
         h, w = frame.shape[:2]
         if players is None:
-            players = [Player(0, w // 2), Player(w // 2, w)] if args.duel else [Player(0, w)]
-        if args.battle and battle is None:
+            players = [Player(0, w // 2), Player(w // 2, w)] if duel_mode else [Player(0, w)]
+        if mode == "battle" and battle is None:
             battle = Battle(w, h)
-        if args.duel and duel is None:
+        if duel_mode and duel is None:
             duel = Duel(w, h)
         clean = frame.copy()   # without landmarks/HUD, for effects that copy the user
-        detections = signs.detect_halves(clean) if args.duel else [signs.detect(clean)]
+        detections = signs.detect_halves(clean) if duel_mode else [signs.detect(clean)]
         frame, hands = detector.find_hands(frame)
         hand_points = [detector.get_landmark_list(hd, frame.shape) for hd in hands]
         hand_centres = [np.mean([pts[k] for k in PALM_POINTS], axis=0) for pts in hand_points]
@@ -101,7 +148,7 @@ def main():
             arena = battle or (duel.fighters[i] if duel else None)   # gates combos by cooldown
             tx = p.x0 + 20
             # Hands belong to the player whose half their palm is in
-            owned = [k for k, c in enumerate(hand_centres) if not args.duel or (c[0] >= w / 2) == (i == 1)]
+            owned = [k for k, c in enumerate(hand_centres) if not duel_mode or (c[0] >= w / 2) == (i == 1)]
             centres = [hand_centres[k] for k in owned]
             mine = [hand_points[k] for k in owned]
 
@@ -186,7 +233,7 @@ def main():
             for face in face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks or []:
                 mouth, scale, direction = face_aim([(lm.x, lm.y) for lm in face.landmark])
                 mouth = mouth * (w, h)
-                owner = players[int(mouth[0] >= w / 2) if args.duel else 0]
+                owner = players[int(mouth[0] >= w / 2) if duel_mode else 0]
                 if owner in aiming:
                     owner.mouth, owner.fire_scale, owner.fire_dir = mouth, scale, direction
 
@@ -216,6 +263,9 @@ def main():
                 draw_invisible(frame, own, plate, t, EFFECT_SECONDS[kind])
             elif kind == "clone":   # drawn into the caster's columns only (views write through)
                 draw_clones(frame[:, p.x0:p.x1], clean[:, p.x0:p.x1], mask[:, p.x0:p.x1], t, EFFECT_SECONDS[kind])
+            elif kind == "substitution":
+                if not (battle or duel):   # free play: swap with a log on the spot; in a fight it waits for a hit
+                    draw_log(frame, p.palm, p.palm_size * 5, t, EFFECT_SECONDS[kind])
             elif kind == "fireball":
                 origin = p.mouth if p.mouth is not None else p.palm
                 direction = p.fire_dir
@@ -272,16 +322,15 @@ def main():
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
-            break
+            return "quit"
+        if key == ord('m'):
+            return "menu"
         if key == ord('r') and game:
             game = Game(COMBOS, time.monotonic())
         if key == ord('r') and battle:
             battle = Battle(w, h)
         if key == ord('r') and duel:
             duel = Duel(w, h)
-
-    cap.release()
-    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()

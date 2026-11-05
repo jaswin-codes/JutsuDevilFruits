@@ -9,9 +9,11 @@ MONSTER_RADIUS = 0.05  # fraction of frame width
 CONTACT_DAMAGE = 15    # HP a monster takes from you when it reaches the player zone
 FIREBALL_DAMAGE = 120
 MELEE_DPS = 120        # Chidori; Rasengan's damage is scaled by its size
-COOLDOWN = {"fireball": 1.0, "chidori": 5.0, "rasengan": 10.0, "clone": 12.0, "invisible": 15.0}
+COOLDOWN = {"fireball": 1.0, "chidori": 5.0, "rasengan": 10.0, "clone": 12.0, "invisible": 15.0,
+            "substitution": 8.0}
 CLONE_SECONDS = 3.0
 HIDDEN_SECONDS = 5.0   # invisible: monsters lose track of you and stand still
+SUB_SECONDS = 4.0      # substitution: the next hit in this window lands on a log instead of you
 WAVE_BREAK = 3.0       # seconds between waves
 MAX_DT = 0.1           # model loads can stall a frame for >1 s; don't let monsters teleport
 
@@ -36,6 +38,8 @@ class Battle:
         self.ready_at = {kind: 0.0 for kind in COOLDOWN}
         self.clone_until = -1.0
         self.hidden_until = -1.0
+        self.sub_until = -1.0         # substitution armed until then
+        self.swap_time = -9.0         # battle time the log took a hit (log drawing)
         self.hurt_time = -1.0         # battle time a monster last reached you (red flash)
         self.fireball_spent = False   # a cast hits one monster once
         self._start_wave()
@@ -76,6 +80,8 @@ class Battle:
             self.fireball_spent = False
         if kind == "invisible":
             self.hidden_until = self.t + HIDDEN_SECONDS
+        if kind == "substitution":
+            self.sub_until = self.t + SUB_SECONDS
         return True
 
     def update(self, dt):
@@ -93,6 +99,9 @@ class Battle:
             m.x = min(m.x + m.speed * dt, centre - stop) if m.side == -1 else max(m.x - m.speed * dt, centre + stop)
             if abs(m.x - centre) < ZONE * self.w:
                 self.monsters.remove(m)
+                if self.t < self.sub_until:   # it mauls the log; the swap is used up
+                    self.sub_until, self.swap_time = -1.0, self.t
+                    continue
                 self.hp = max(0, self.hp - CONTACT_DAMAGE)
                 self.hurt_time = self.t
                 hits += 1
