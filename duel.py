@@ -4,7 +4,8 @@
 from battle import COOLDOWN, MAX_DT, PLAYER_HP
 
 BODY = 0.12            # fireball target: centre of the opponent's half +- this fraction of frame width
-FRONT = 0.03           # Chidori/Rasengan hit once the ball crosses this far past the centre line
+FRONT = -0.03          # Chidori/Rasengan hit once the ball's edge gets this close to the centre line
+                       # (negative: it needn't cross; hands are ~30 px wide two metres from a webcam)
 FIREBALL_DAMAGE = 30
 MELEE_DPS = 20         # Chidori; Rasengan's damage is scaled by its size
 MELEE_MAX = 35         # most one Chidori/Rasengan cast can deal: no single jutsu wins a round
@@ -91,10 +92,10 @@ class Duel:
 
     def melee(self, i, centre, radius, dt, power=1.0):
         """Chidori/Rasengan held by player i at centre: damages the opponent while the ball
-        reaches across the centre line. The palm itself stays on its own side, so main.py can
+        reaches the centre line. The palm itself stays on its own side, so main.py can
         assign hands by screen half. Returns True on a hit."""
         me = self.fighters[i]
-        reach = (centre[0] - self.w / 2) * self.toward(i) + radius   # how far the ball pokes over the line
+        reach = (centre[0] - self.w / 2) * self.toward(i) + radius   # ball edge past the line (< 0: short)
         if self.over() or reach < FRONT * self.w or me.melee_dealt >= MELEE_MAX:
             return False
         amount = min(MELEE_DPS * power * min(dt, MAX_DT), MELEE_MAX - me.melee_dealt)

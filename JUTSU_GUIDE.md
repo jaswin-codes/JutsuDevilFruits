@@ -161,7 +161,7 @@ each player's signs, hands and jutsu are read from their own half only. Both sta
 | Jutsu | How it hits | Damage | Cooldown |
 |---|---|---|---|
 | Fireball | Flies across to the other player and hits once when it reaches them. Facing the camera aims it straight at your opponent; turning your head away sends it off your own side. | 30 | 1 s |
-| Chidori | Reach toward the centre line: hits while the lightning ball crosses into the other half. | 20/s, max 35 per cast | 5 s |
+| Chidori | Reach toward the centre line: hits while the lightning ball touches it. | 20/s, max 35 per cast | 5 s |
 | Rasengan | Same as Chidori; a bigger ball (hands further apart) hits faster. | up to 50/s, max 35 per cast | 10 s |
 | Shadow Clone | Your clones take every hit for 3 s, including a fireball, which is used up. | - | 12 s |
 | Hiding with Camouflage | The opponent's fireball can't find you for 5 s (Chidori and Rasengan still can). | - | 15 s |

@@ -82,7 +82,7 @@ def test_melee_hits_only_when_the_ball_crosses_the_centre_line():
     d.fighters[0].on_combo("chidori")
     d.fighters[1].on_combo("rasengan")
     assert not d.melee(0, (W * 0.3, H / 2), 40, DT)        # held in front of yourself
-    assert d.melee(0, (W / 2 - 10, H / 2), 40, DT)         # palm on own side, ball pokes across
+    assert d.melee(0, (W / 2 - 50, H / 2), 40, DT)         # palm on own side, ball near the line
     assert not d.melee(1, (W * 0.7, H / 2), 40, DT)
     assert d.melee(1, (W / 2 + 10, H / 2), 40, DT)
 
