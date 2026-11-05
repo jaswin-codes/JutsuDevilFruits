@@ -113,6 +113,7 @@ def test_game_over_at_zero_hp_stops_everything():
     b.monsters = [Monster(W / 2 - battle.ZONE * W - 1, 300, -1, 100, 30)]
     b.update(0.1)
     assert b.over() and b.hp == 0
+    assert b.wave == 1 and b.score == 0   # no clear bonus for the wave that beat you
     assert not b.on_combo("fireball")
     assert b.update(1) == 0
 

@@ -92,7 +92,7 @@ class Battle:
                 self.hp = max(0, self.hp - CONTACT_DAMAGE)
                 self.hurt_time = self.t
                 hits += 1
-        if not self.monsters and not self.to_spawn:
+        if not self.monsters and not self.to_spawn and not self.over():
             self.score += 50 * self.wave
             self._start_wave()
         return hits
