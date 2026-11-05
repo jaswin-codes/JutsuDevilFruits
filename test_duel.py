@@ -131,3 +131,15 @@ def test_long_frame_is_clamped():
     d = Duel(W, H)
     d.update(5.0)                              # model load stalls a frame
     assert d.t == duel.MAX_DT
+
+
+def test_duel_view_draws_hud_and_winner():
+    import numpy as np
+    import main  # noqa: F401  - main.py must at least import with --duel wired in
+    from duel_view import draw_duel
+    d = Duel(W, H)
+    frame = np.zeros((H, W, 3), np.uint8)
+    draw_duel(frame, d, ("KATON - FIREBALL JUTSU - cooling down 1s", None))
+    d.fighters[1].hp = 0
+    draw_duel(frame, d)
+    assert frame.any()
