@@ -10,7 +10,7 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
 - Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
-  Shadow Clones of you (selfie segmentation), and a Fireball from your mouth (face mesh),
+  Shadow Clones of you (selfie segmentation), invisibility against a learned background, and a Fireball from your mouth (face mesh),
   plus particle bursts and sound (sound on Windows)
 - Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
   is sized by how wide you open your mouth and aimed by turning your head
@@ -30,6 +30,7 @@ Sign orders follow the anime:
 - Hitsuji -> Mi -> Tora: SHADOW CLONE JUTSU
 - Ushi -> U -> Saru: CHIDORI
 - Gassho: RASENGAN (no canon signs)
+- Ne -> Inu -> Tori: HIDING WITH CAMOUFLAGE (invisibility; our own sign pick)
 
 Add a combo of any length with one line in combos.py.
 
