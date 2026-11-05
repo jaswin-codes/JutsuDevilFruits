@@ -103,7 +103,8 @@ The recognition, battle and duel logic are tested without a webcam:
 ```powershell
 python -m pytest
 ```
-nGitHub Actions runs the same tests on every push and pull request (`.github/workflows/tests.yml`).
+
+GitHub Actions runs the same tests on every push and pull request (`.github/workflows/tests.yml`).
 
 ## How Detection Works
 
