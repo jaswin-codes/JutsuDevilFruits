@@ -11,7 +11,7 @@ from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
 from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
-                           fireball_path, CLONE_OFFSETS)
+                           fireball_path, draw_invisible, BackgroundPlate, CLONE_OFFSETS)
 from game import Game
 from battle import Battle
 from battle_view import draw_battle
@@ -40,11 +40,13 @@ def main():
     active_effect = None   # combo dict from combos.py while its effect plays
     effect_start  = 0.0
     # Max seconds per effect; hand-held ones also end once the hand is gone
-    EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5}
+    EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0}
     HAND_EFFECTS = ("chidori", "rasengan")
     palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
     hand_spread = None     # distance between two palms (Rasengan size), None with one hand
-    segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
+    segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
+    plate = BackgroundPlate()   # empty scene for invisibility, learned from the frames
+    frame_no = 0
     face_mesh, mouth = None, None   # built on first Fireball; mouth = last seen lip centre
     fire_scale, fire_dir = 1.0, 0.0   # mouth opening and head turn, locked at launch
     particles = ParticleSystem()
@@ -140,9 +142,14 @@ def main():
         now = time.monotonic()
         dt = now - last_tick
         killed = []            # monster positions defeated this frame (battle mode)
+        frame_no += 1
+        kind = active_effect["effect"] if active_effect else None
+        mask = None            # selfie mask (1 = person): for clones, invisibility, background learning
+        if kind in ("clone", "invisible") or frame_no % 10 == 0:
+            mask = segmenter.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).segmentation_mask
+            plate.update(clean, mask)
         if active_effect:
             t = now - effect_start
-            kind = active_effect["effect"]
             if kind == "chidori":
                 radius = palm_size * 1.1 * (1 + 0.8 * min(t / 3, 1))   # charges up
                 draw_chidori(frame, palm, radius, t)
@@ -154,10 +161,9 @@ def main():
                 draw_rasengan(frame, palm, size, t)
                 if battle:   # bigger Rasengan hits harder
                     killed = battle.melee(palm, size, dt, power=size / (palm_size * 1.2))
+            elif kind == "invisible":
+                draw_invisible(frame, mask, plate, t, EFFECT_SECONDS[kind])
             elif kind == "clone":
-                if segmenter is None:
-                    segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
-                mask = segmenter.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).segmentation_mask
                 draw_clones(frame, clean, mask, t, EFFECT_SECONDS[kind])
             elif kind == "fireball":
                 if face_mesh is None:
