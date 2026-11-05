@@ -15,8 +15,9 @@
    ```
    python main.py
    ```
-4. A window will open showing your webcam feed
-5. Press **Q** to quit at any time
+4. A window opens with a start menu over your webcam feed: press **1** free play,
+   **2** challenge, **3** monster battle or **4** duel
+5. Press **M** to go back to the menu and **Q** to quit at any time
 
 ---
 
@@ -115,6 +116,15 @@ heat-haze ripple where you stand. In battle mode the monsters lose track of you 
 step out of the picture for a second (or move to the other side) before you use it. Spots it has never
 seen empty show as a blur. Keep the camera still: if it moves, step out again so it relearns.
 
+### 🪵 Substitution Jutsu
+**Sequence:** `Tatsu → Ne` (Dragon, Rat). Our own pick: Tatsu is the one sign no other jutsu
+uses, so it can't fire by accident halfway through another jutsu.
+
+**Effect:** For 4 seconds after you cast it, the next hit lands on a wooden log instead of you,
+in a puff of smoke. In battle mode the first monster to reach you mauls the log; in a duel it
+takes any jutsu (one hit, then it's used up). In free play the log appears on the spot.
+Cooldown 8 s.
+
 ---
 
 ## Game Mode
@@ -139,6 +149,7 @@ tougher and faster monsters. Press **R** to fight again after a defeat.
 | Rasengan | Charged melee | Same as Chidori, but a bigger ball (hands further apart) hits harder. | 10 s |
 | Shadow Clone | Block | For 3 s your clones hold the monsters back and you take no damage. | 12 s |
 | Hiding with Camouflage | Escape | Monsters lose track of you and stand still for 5 s. | 15 s |
+| Substitution | Dodge | The next monster to reach you within 4 s hits a log instead. | 8 s |
 
 A jutsu still on cooldown shows a "cooling down" notice and does nothing; its timer is at
 the bottom right. Your HP, wave and score are at the bottom left.
@@ -155,16 +166,21 @@ Tips:
 
 Run `python main.py --duel`. Two players stand side by side in front of one webcam; the
 screen splits down the middle. **Player 1 is the left half, player 2 the right half**, and
-each player's signs, hands and jutsu are read from their own half only. Both start with
-100 HP; the round ends when one reaches 0. Press **R** for a new round.
+each player's signs, hands and jutsu are read from their own half only.
+
+A match is **best of 3 rounds**. Each round starts with a 3-2-1-FIGHT countdown (jutsu do
+nothing before FIGHT), both players at 100 HP and every jutsu ready. A round ends when one
+player reaches 0 HP; the next starts by itself after 3 seconds. The round and score are shown
+between the HP bars. After the match, press **R** for a rematch.
 
 | Jutsu | How it hits | Damage | Cooldown |
 |---|---|---|---|
-| Fireball | Flies across to the other player and hits once when it reaches them. Facing the camera aims it straight at your opponent; turning your head away sends it off your own side. | 30 | 1 s |
+| Fireball | Flies across to the other player and hits once when it reaches them. Facing the camera aims it straight at your opponent; turning your head away sends it off your own side. | 40 (the slowest jutsu to perform hits hardest) | 1 s |
 | Chidori | Reach toward the centre line: hits while the lightning ball touches it. | 20/s, max 35 per cast | 5 s |
 | Rasengan | Same as Chidori; a bigger ball (hands further apart) hits faster. | up to 50/s, max 35 per cast | 10 s |
 | Shadow Clone | Your clones take every hit for 3 s, including a fireball, which is used up. | - | 12 s |
 | Hiding with Camouflage | The opponent's fireball can't find you for 5 s (Chidori and Rasengan still can). | - | 15 s |
+| Substitution | The next hit within 4 s, of any jutsu, lands on a log instead. | - | 8 s |
 
 Each player's HP bar and cooldowns are in their bottom corner; a red edge round your half
 means you were hit.
@@ -175,7 +191,7 @@ Tips:
 - Leave some space between you: the sign model was trained on one person per picture, so
   two people overlapping can confuse it.
 - No single jutsu wins a round: mix fast Chidori pokes with a well-timed Fireball, and keep
-  Shadow Clone ready for the opponent's Fireball.
+  Shadow Clone or Substitution ready for the opponent's Fireball.
 
 ---
 

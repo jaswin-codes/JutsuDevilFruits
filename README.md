@@ -32,6 +32,7 @@ Sign orders follow the anime:
 - Ushi -> U -> Saru: CHIDORI
 - Gassho: RASENGAN (no canon signs)
 - Ne -> Inu -> Tori: HIDING WITH CAMOUFLAGE (invisibility; our own sign pick)
+- Tatsu -> Ne: SUBSTITUTION JUTSU (the next hit lands on a log; our own sign pick)
 
 Add a combo of any length with one line in combos.py.
 
@@ -86,10 +87,12 @@ pip install -r requirements.txt
 python main.py
 ```
 
+   A start menu over the camera picks the mode: 1 free play, 2 challenge, 3 monster battle,
+   4 duel. Press M in any mode to come back to the menu.
    Use another webcam with `python main.py --camera 1`.
-   Play the challenge with `python main.py --game` (R restarts when time is up).
-   Fight monsters with `python main.py --battle` (R restarts after defeat).
-   Fight a friend with `python main.py --duel` (left half = player 1, right half = player 2; R restarts).
+   Skip the menu with a flag: `--free`, `--game` (R restarts when time is up),
+   `--battle` (R restarts after defeat) or `--duel` (left half = player 1, right half = player 2,
+   best of 3; R starts a rematch).
 
 4. Quit by pressing Q in the OpenCV window.
 
@@ -100,6 +103,7 @@ The recognition, battle and duel logic are tested without a webcam:
 ```powershell
 python -m pytest
 ```
+nGitHub Actions runs the same tests on every push and pull request (`.github/workflows/tests.yml`).
 
 ## How Detection Works
 
