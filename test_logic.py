@@ -138,3 +138,23 @@ def test_fireball_flies_toward_the_side_you_face():
         frame = np.zeros((480, 640, 3), np.uint8)
         fx.draw_fireball(frame, (320, 240), t=1.5, direction=direction)
         assert frame[:, side].sum() > 3 * frame[:, 640 - side.stop:640 - side.start].sum()
+
+
+def test_invisibility_shows_learned_background_where_the_person_stands():
+    from anime_effects import BackgroundPlate, draw_invisible
+    scene = np.zeros((60, 80, 3), np.uint8)
+    scene[:, ::4] = 200                                 # textured wall
+    def person_at(x0):
+        f, m = scene.copy(), np.zeros((60, 80), np.float32)
+        m[10:, x0:x0 + 20] = 1
+        f[m > 0] = (0, 0, 255)
+        return f, m
+    plate = BackgroundPlate()
+    plate.update(*person_at(50))                        # first frame includes the person...
+    plate.update(*person_at(5))                         # ...whose old spot is now taken whole
+    frame, mask = person_at(30)
+    assert plate.seen[10:, 30:50].all()
+    draw_invisible(frame, mask, plate, t=2.0)
+    # wall shows through (compare averages: the ripple shifts the stripes a few pixels)
+    assert np.abs(frame[15:, 32:48].mean((0, 1)) - scene[15:, 32:48].mean((0, 1))).max() < 15
+    assert not (frame[30, 32:48] == (0, 0, 255)).all(-1).any()

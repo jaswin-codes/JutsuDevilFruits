@@ -175,3 +175,48 @@ def draw_fireball(frame, mouth, t, duration=2.5, scale=1.0, direction=0.0):
     alpha = cv2.resize(alpha.astype(np.float32), size)[..., None]
     region = frame[y0:y1, x0:x1]
     region[:] = (region + (colour - region) * alpha).astype(np.uint8)
+
+
+class BackgroundPlate:
+    """Learns the empty scene from pixels where nobody stands, so the invisibility jutsu can
+    show what is behind you. Step out of the picture once (or just move around) to fill it."""
+
+    def __init__(self, rate=0.3):
+        self.rate = rate      # how fast the plate follows lighting changes
+        self.plate = None     # float32 HxWx3
+        self.seen = None      # bool HxW: pixels seen without a person on them
+
+    def update(self, frame, mask):
+        """frame: clean camera frame; mask: float HxW, 1 = person."""
+        if self.plate is None:
+            self.plate = frame.astype(np.float32)
+            self.seen = np.zeros(mask.shape, bool)
+        empty = mask < 0.1
+        first = empty & ~self.seen                       # never seen empty before: take it whole
+        self.plate[empty] += (frame[empty] - self.plate[empty]) * self.rate
+        self.plate[first] = frame[first]
+        self.seen |= empty
+
+
+def draw_invisible(frame, mask, plate, t, duration=8.0):
+    """Hiding-with-camouflage: the person is replaced by the learned background, with a faint
+    heat-haze ripple so you can just make out where they are. Parts of the scene never seen
+    without the person show as a smeared blur."""
+    mask = cv2.dilate(np.clip((mask.astype(np.float32) - 0.3) / 0.4, 0, 1), np.ones((9, 9), np.uint8))
+    ys, xs = np.nonzero(mask > 0.01)
+    if not len(xs) or plate.plate is None:
+        return
+    h, w = frame.shape[:2]
+    y0, y1 = max(ys.min() - 8, 0), min(ys.max() + 9, h)
+    x0, x1 = max(xs.min() - 8, 0), min(xs.max() + 9, w)
+    region = frame[y0:y1, x0:x1].astype(np.float32)
+    seen = plate.seen[y0:y1, x0:x1, None]
+    haze = cv2.GaussianBlur(region, (0, 0), 15)                  # stand-in where never seen
+    background = np.where(seen, plate.plate[y0:y1, x0:x1], haze)
+    # Ripple: shift the background sideways by a few pixels in moving waves
+    yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+    map_x = xx - x0 + 3 * np.sin(yy / 9 + t * 8)
+    background = cv2.remap(background, map_x, yy - y0, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    fade = float(np.clip(t / 0.6, 0, 1) * np.clip((duration - t) / 0.6, 0, 1))   # fade out, then back
+    m = cv2.GaussianBlur(mask[y0:y1, x0:x1], (0, 0), 3)[..., None] * fade
+    frame[y0:y1, x0:x1] = (region + (background - region) * m).astype(np.uint8)
