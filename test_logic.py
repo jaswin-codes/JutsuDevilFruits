@@ -111,3 +111,30 @@ def test_clones_copy_person_beside_them():
     clone_x = 320 + int(fx.CLONE_OFFSETS[3] * 640)
     assert frame[250, clone_x] .min() > 150         # a clone appeared to the right
     assert (frame[250, 320] == 200).all()           # real person untouched
+
+
+def face_points(nose_x=0.5, lip_gap=0.0):
+    """Face-mesh points with only the landmarks face_aim reads filled in."""
+    p = np.zeros((468, 2))
+    p[10], p[152] = (0.5, 0.2), (0.5, 0.7)            # forehead, chin: face height 0.5
+    p[234], p[454] = (0.4, 0.45), (0.6, 0.45)         # cheek edges
+    p[1] = (nose_x, 0.45)                             # nose tip
+    p[13], p[14] = (0.5, 0.6), (0.5, 0.6 + lip_gap)   # inner lips
+    return p
+
+
+def test_face_aim_reads_head_turn_and_mouth_opening():
+    from anime_effects import face_aim
+    mouth, scale, direction = face_aim(face_points())
+    assert np.allclose(mouth, (0.5, 0.6)) and scale == 0.7 and direction == 0.0
+    assert face_aim(face_points(nose_x=0.58))[2] == 1.0     # nose near the right cheek
+    assert face_aim(face_points(nose_x=0.45))[2] < 0        # turned left
+    assert face_aim(face_points(lip_gap=0.05))[1] == 1.5    # mouth wide open: biggest
+
+
+def test_fireball_flies_toward_the_side_you_face():
+    import anime_effects as fx
+    for direction, side in [(1.0, slice(400, 640)), (-1.0, slice(0, 240))]:
+        frame = np.zeros((480, 640, 3), np.uint8)
+        fx.draw_fireball(frame, (320, 240), t=1.5, direction=direction)
+        assert frame[:, side].sum() > 3 * frame[:, 640 - side.stop:640 - side.start].sum()
