@@ -138,17 +138,21 @@ def face_aim(points):
     return mouth, scale, direction
 
 
+def fireball_path(mouth, t, duration, scale, direction, frame_shape):
+    """Fireball (centre, radius) at time t; shared by draw_fireball and the battle hit test."""
+    h, w = frame_shape[:2]
+    if t < 0.5:
+        return mouth, (8 + 32 * t / 0.5) * scale                 # gathering at the lips
+    progress = (t - 0.5) / (duration - 0.5)
+    # Toward the camera it mostly grows; sideways it mostly travels
+    radius = (40 + (0.75 * h - 40) * progress ** 0.7 * (1 - 0.6 * abs(direction))) * scale
+    return (mouth[0] + direction * progress * w * 0.7, mouth[1]), radius
+
+
 def draw_fireball(frame, mouth, t, duration=2.5, scale=1.0, direction=0.0):
     """Fire Style: a fireball swells at the mouth, then flies where you face and fades.
     direction 0 rushes at the camera (grows); -1/1 flies off to the screen's left/right."""
-    h, w = frame.shape[:2]
-    if t < 0.5:
-        radius = (8 + 32 * t / 0.5) * scale                      # gathering at the lips
-    else:
-        progress = (t - 0.5) / (duration - 0.5)
-        # Toward the camera it mostly grows; sideways it mostly travels
-        radius = (40 + (0.75 * h - 40) * progress ** 0.7 * (1 - 0.6 * abs(direction))) * scale
-        mouth = (mouth[0] + direction * progress * w * 0.7, mouth[1])
+    mouth, radius = fireball_path(mouth, t, duration, scale, direction, frame.shape)
     fade = np.clip((duration - t) / 0.6, 0, 1)
     box = _roi(frame, mouth, int(radius * 1.3))
     if box is None or fade <= 0:
