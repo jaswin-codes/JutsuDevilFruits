@@ -4,12 +4,13 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from hand_detector import HandDetector
-from signs import match_sign, combine_signs
+from sign_model import SignModel
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
 from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
-from anime_effects import draw_chidori, draw_rasengan, draw_clones, draw_fireball, CLONE_OFFSETS
+from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
+                           CLONE_OFFSETS)
 from game import Game
 
 def main():
@@ -25,7 +26,8 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    detector   = HandDetector(max_hands=2)
+    signs      = SignModel()                # real Naruto signs (both hands as one sign)
+    detector   = HandDetector(max_hands=2)   # palm position for the effects
     stabilizer = SignStabilizer(buffer_size=10, confirm_threshold=7)
     sequencer  = SequenceDetector(max_length=MAX_COMBO_LENGTH)
 
@@ -35,12 +37,14 @@ def main():
     EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5}
     HAND_EFFECTS = ("chidori", "rasengan")
     palm, palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
+    hand_spread = None     # distance between two palms (Rasengan size), None with one hand
     segmenter = None       # selfie segmentation, built on first Shadow Clone (slow to load)
     face_mesh, mouth = None, None   # built on first Fireball; mouth = last seen lip centre
+    fire_scale, fire_dir = 1.0, 0.0   # mouth opening and head turn, locked at launch
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if args.game else None
     last_tick = time.monotonic()
-    MISS_LIMIT = 15        # frames without a hand (~0.5s) before the combo is wiped
+    MISS_LIMIT = 15        # frames with no hand or sign (~0.5s) before the combo is wiped
     missed_frames = 0
 
     print("Jutsu Code")
@@ -54,21 +58,28 @@ def main():
 
         frame = cv2.flip(frame, 1)
         clean = frame.copy()   # without landmarks/HUD, for effects that copy the user
+        raw_sign, sign_box = signs.detect(clean)
         frame, hands = detector.find_hands(frame)
 
         if hands:
-            missed_frames = 0
-            # Order hands left-to-right on screen: MediaPipe's list order isn't stable
-            hand_points = sorted((detector.get_landmark_list(h, frame.shape) for h in hands),
-                                 key=lambda pts: pts[0][0])
-            hand_fingers = [detector.get_finger_states(pts) for pts in hand_points]
+            hand_points = [detector.get_landmark_list(h, frame.shape) for h in hands]
             # Palm = mean of wrist and knuckles; two hands -> between them (Rasengan)
-            palm_now = np.mean([np.mean([pts[i] for i in (0, 5, 9, 13, 17)], axis=0)
-                                for pts in hand_points], axis=0)
-            palm = palm_now if palm is None else 0.5 * palm + 0.5 * palm_now   # damp jitter
+            centres = [np.mean([pts[i] for i in (0, 5, 9, 13, 17)], axis=0) for pts in hand_points]
+            palm_now = np.mean(centres, axis=0)
             palm_size = np.mean([np.hypot(*np.subtract(pts[0], pts[9])) for pts in hand_points])
-            fingers   = hand_fingers[0]   # finger panel shows the left-most hand
-            raw_sign  = combine_signs([match_sign(f) for f in hand_fingers])
+            hand_spread = np.hypot(*np.subtract(*centres[:2])) if len(centres) == 2 else None
+        elif sign_box:   # interlocked fingers often hide the hands from MediaPipe
+            x1, y1, x2, y2 = sign_box
+            palm_now, palm_size = np.array([(x1 + x2) / 2, (y1 + y2) / 2]), (x2 - x1) / 3
+            hand_spread = None
+        if hands or sign_box:
+            palm = palm_now if palm is None else 0.5 * palm + 0.5 * palm_now   # damp jitter
+
+        if sign_box:
+            cv2.rectangle(frame, sign_box[:2], sign_box[2:], (0, 255, 100), 2)
+
+        if hands or raw_sign:
+            missed_frames = 0
             stable_sign = stabilizer.update(raw_sign)
 
             cv2.putText(frame, f"Raw:    {raw_sign}", (20, 40),
@@ -81,7 +92,7 @@ def main():
                 cv2.putText(frame, f"SIGN: {stable_sign}", (20, 90),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 100), 3)
 
-                cv2.putText(frame, f"Seq: {' > '.join(sequence)}", (20, 290),
+                cv2.putText(frame, f"Seq: {' > '.join(sequence)}", (20, 130),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, (200, 200, 0), 2)
 
                 if combo and combo is not active_effect:
@@ -99,16 +110,10 @@ def main():
             else:
                 cv2.putText(frame, "Holding...", (20, 90),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 180, 255), 2)
-
-            finger_names = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky']
-            for i, (name, state) in enumerate(zip(finger_names, fingers)):
-                color = (0, 255, 0) if state == 1 else (0, 0, 255)
-                cv2.putText(frame, f"{name}: {'UP' if state else 'DOWN'}",
-                            (20, 130 + i * 28),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
         else:
-            # MediaPipe often drops the hand for a frame or two mid-transition
+            # Detection often drops for a frame or two mid-transition
             missed_frames += 1
+            stabilizer.update(None)
             if missed_frames == MISS_LIMIT:
                 stabilizer.reset()
                 sequencer.reset()
@@ -121,9 +126,11 @@ def main():
             t = now - effect_start
             kind = active_effect["effect"]
             if kind == "chidori":
-                draw_chidori(frame, palm, palm_size * 1.1, t)
-            elif kind == "rasengan":
-                draw_rasengan(frame, palm, palm_size * 1.2, t)
+                draw_chidori(frame, palm, palm_size * 1.1 * (1 + 0.8 * min(t / 3, 1)), t)   # charges up
+            elif kind == "rasengan":   # pull your hands apart to grow it
+                size = palm_size * 1.2 if hand_spread is None else np.clip(
+                    hand_spread * 0.45, palm_size * 0.6, palm_size * 3)
+                draw_rasengan(frame, palm, size, t)
             elif kind == "clone":
                 if segmenter is None:
                     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
@@ -132,12 +139,13 @@ def main():
             elif kind == "fireball":
                 if face_mesh is None:
                     face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=1)
-                faces = face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks
-                if faces:   # 13/14 = inner upper/lower lip
-                    lips = [faces[0].landmark[i] for i in (13, 14)]
-                    mouth = (np.mean([p.x for p in lips]) * frame.shape[1],
-                             np.mean([p.y for p in lips]) * frame.shape[0])
-                draw_fireball(frame, mouth if mouth is not None else palm, t, EFFECT_SECONDS[kind])
+                if t < 0.5:   # aim while it gathers; once launched it keeps that course
+                    faces = face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks
+                    if faces:
+                        mouth, fire_scale, fire_dir = face_aim([(p.x, p.y) for p in faces[0].landmark])
+                        mouth = mouth * (frame.shape[1], frame.shape[0])
+                draw_fireball(frame, mouth if mouth is not None else palm, t, EFFECT_SECONDS[kind],
+                              fire_scale, fire_dir)
 
             if t < 2.0:   # jutsu name banner near the top
                 text = active_effect["name"]

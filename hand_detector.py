@@ -1,4 +1,3 @@
-import math
 import cv2
 import mediapipe as mp
 
@@ -42,25 +41,3 @@ class HandDetector:
             landmark_list.append((cx, cy))
 
         return landmark_list
-
-    def get_finger_states(self, landmark_list):
-        """
-        Returns [thumb, index, middle, ring, pinky]
-        1 = up, 0 = down
-        """
-        if len(landmark_list) < 21:
-            return [0, 0, 0, 0, 0]
-
-        # Distance-based, so it works however the hand is rotated or which hand it is.
-        def dist(a, b):
-            return math.dist(landmark_list[a], landmark_list[b])
-
-        # Thumb: extended if its tip (4) is further from the pinky base (17) than its IP joint (3)
-        fingers = [1 if dist(4, 17) > dist(3, 17) else 0]
-
-        # Four fingers: extended if the tip is further from the wrist (0) than the PIP joint;
-        # a curled finger folds its tip back toward the palm.
-        for tip, pip in zip([8, 12, 16, 20], [6, 10, 14, 18]):
-            fingers.append(1 if dist(tip, 0) > dist(pip, 0) else 0)
-
-        return fingers

@@ -124,13 +124,31 @@ def draw_clones(frame, person, mask, t, duration=3.0):
     frame[y0:y1] = out.astype(np.uint8)
 
 
-def draw_fireball(frame, mouth, t, duration=2.5):
-    """Fire Style: a fireball swells at the mouth, then rushes at the camera and fades."""
-    h = frame.shape[0]
+def face_aim(points):
+    """points: face-mesh landmarks as an (N, 2) array of normalised (x, y).
+    Returns (mouth centre, fireball scale 0.7-1.5 from how open the mouth is,
+    direction -1 = facing screen-left .. 1 = screen-right, 0 = at the camera)."""
+    p = np.asarray(points)
+    mouth = (p[13] + p[14]) / 2                                   # inner upper/lower lip
+    opening = abs(p[14, 1] - p[13, 1]) / max(abs(p[152, 1] - p[10, 1]), 1e-6)   # / face height
+    scale = 0.7 + 0.8 * np.clip(opening / 0.08, 0, 1)
+    left, right = sorted((p[234, 0], p[454, 0]))                  # cheek edges on screen
+    yaw = (p[1, 0] - left) / max(right - left, 1e-6) * 2 - 1      # nose tip across the face
+    direction = 0.0 if abs(yaw) < 0.1 else float(np.clip(yaw * 2.5, -1, 1))   # dead zone
+    return mouth, scale, direction
+
+
+def draw_fireball(frame, mouth, t, duration=2.5, scale=1.0, direction=0.0):
+    """Fire Style: a fireball swells at the mouth, then flies where you face and fades.
+    direction 0 rushes at the camera (grows); -1/1 flies off to the screen's left/right."""
+    h, w = frame.shape[:2]
     if t < 0.5:
-        radius = 8 + 32 * t / 0.5                              # gathering at the lips
+        radius = (8 + 32 * t / 0.5) * scale                      # gathering at the lips
     else:
-        radius = 40 + (0.75 * h - 40) * ((t - 0.5) / (duration - 0.5)) ** 0.7   # flies forward
+        progress = (t - 0.5) / (duration - 0.5)
+        # Toward the camera it mostly grows; sideways it mostly travels
+        radius = (40 + (0.75 * h - 40) * progress ** 0.7 * (1 - 0.6 * abs(direction))) * scale
+        mouth = (mouth[0] + direction * progress * w * 0.7, mouth[1])
     fade = np.clip((duration - t) / 0.6, 0, 1)
     box = _roi(frame, mouth, int(radius * 1.3))
     if box is None or fade <= 0:

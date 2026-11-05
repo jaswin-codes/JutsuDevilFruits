@@ -4,40 +4,39 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 
 ## Features
 
-- Live webcam hand tracking (21 MediaPipe landmarks)
-- Finger-state extraction for 5 fingers
-- Rule-based sign recognition (no model training)
+- Real Naruto hand signs (12 zodiac signs + prayer hands) from a trained YOLOX-Nano model
+  ([Kazuhito00/NARUTO-HandSignDetection](https://github.com/Kazuhito00/NARUTO-HandSignDetection), MIT)
+- Live webcam hand tracking (MediaPipe) to place the effects on your palms
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
-- Two-hand signs (e.g. both hands open = `Ushi+Ushi`)
 - Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
   Shadow Clones of you (selfie segmentation), and a Fireball from your mouth (face mesh),
   plus particle bursts and sound (sound on Windows)
+- Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
+  is sized by how wide you open your mouth and aimed by turning your head
 - Game mode: 60-second challenge with a target jutsu and score
 
 ## Current Sign Set
 
-- Tora = index + middle up
-- Ushi = open hand
-- Ne = index only
-- Inu = fist
-- Tori = index + pinky up
+Ne, Ushi, Tora, U, Tatsu, Mi, Uma, Hitsuji, Saru, Tori, Inu, I (the 12 zodiac signs) and
+Gassho (prayer hands). See JUTSU_GUIDE.md.
 
 ## Current Combos
 
-- Ne -> Tora -> Inu: KATON - FIREBALL JUTSU
-- Ushi -> Ne -> Tora: SHADOW CLONE JUTSU
-- Tori -> Inu -> Ushi: CHIDORI
-- Ushi+Ushi -> Tora+Tora (both hands): RASENGAN
+Sign orders follow the anime:
 
-Two-hand signs are written `Left+Right`, meaning your own left and right hand.
+- Mi -> Tora -> Saru -> I -> Uma -> Tora: KATON - FIREBALL JUTSU
+- Hitsuji -> Mi -> Tora: SHADOW CLONE JUTSU
+- Ushi -> U -> Saru: CHIDORI
+- Gassho: RASENGAN (no canon signs)
+
 Add a combo of any length with one line in combos.py.
 
 ## Project Structure
 
 - main.py: App entry point and render loop
-- hand_detector.py: Hand landmark detection + finger state extraction
-- signs.py: Sign definitions and matching
+- sign_model.py: Runs the hand-sign model (model/yolox_nano_with_post.onnx, MIT, see model/LICENSE)
+- hand_detector.py: MediaPipe hand landmarks, used to place effects on the palm
 - stabilizer.py: Temporal smoothing for stable sign confirmation
 - sequence.py: Sign change sequence tracking
 - combos.py: Combo definitions (name, colour, sound) and lookup
@@ -56,6 +55,7 @@ Add a combo of any length with one line in combos.py.
 Python packages:
 
 - mediapipe 0.10.21 (installs OpenCV as opencv-contrib-python)
+- onnxruntime (runs the hand-sign model on CPU)
 - pytest (tests only)
 
 ## Quick Start (Windows PowerShell)
@@ -95,9 +95,9 @@ python -m pytest
 ## How Detection Works
 
 1. Capture frame from webcam.
-2. Detect hand landmarks.
-3. Convert landmarks to [thumb, index, middle, ring, pinky] states.
-4. Match finger states to a known sign pattern.
+2. Run the sign model on the frame: it returns the most confident sign and its box.
+3. Track hand landmarks so effects follow your palm.
+4. Ignore signs below 0.6 confidence.
 5. Stabilize sign over recent frames.
 6. Append only sign changes to a short sequence buffer.
 7. Match sequence against combo table and trigger effect.
@@ -107,7 +107,7 @@ python -m pytest
 - No camera feed:
   - Run `python main.py --camera 1` (or 2, 3...) to pick another webcam.
 - Signs flicker:
-  - Improve lighting, reduce motion, and keep hand centered.
+  - Improve lighting, reduce motion, and keep both hands in the middle of the frame.
 - Combo not triggering:
   - Hold each sign long enough to stabilize before changing.
 - Startup import errors:

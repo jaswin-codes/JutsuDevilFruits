@@ -13,8 +13,8 @@ but architecture, logic, testing and everything else was designed by myself
 ## Project Summary
 **Jutsu Code** is a Python-based computer vision project that uses a webcam to detect
 hand gestures in real time, recognise sequences of gestures, and trigger visual effects
-when a predefined jutsu combo is performed. Built from scratch without any pre-trained
-gesture classification models - all recognition logic is rule-based and custom written.
+when a predefined jutsu combo is performed. It began with hand-written finger rules and now
+reads real Naruto hand signs with a small pre-trained detector (Stage 11).
 
 ---
 
@@ -123,13 +123,21 @@ Segmentation and face mesh only run while their effect plays.
 
 ---
 
+### Stage 11 - Real Naruto Hand Signs
+The finger rules (Stages 2-3) are replaced by a trained YOLOX-Nano detector from
+Kazuhito00/NARUTO-HandSignDetection (MIT), run with onnxruntime on CPU. It reads both
+hands together as one of the 12 zodiac signs or prayer hands, so the combos now use the
+anime's sign orders. MediaPipe hands is kept only to place effects on the palm.
+
+---
+
 ## Project Architecture
 
 ```
 jutsu_code/
 ├── main.py            — Entry point, camera loop, UI rendering
-├── hand_detector.py   — MediaPipe wrapper, landmark extraction, finger states
-├── signs.py           — Sign pattern definitions and matching logic
+├── sign_model.py      — YOLOX-Nano hand-sign model (model/, MIT, Kazuhito00)
+├── hand_detector.py   — MediaPipe wrapper, palm position for effects
 ├── stabilizer.py      — Frame buffer smoothing for sign confirmation
 ├── sequence.py        — Sign change detection and sequence buffer
 ├── combos.py          — Combo definitions and matching
@@ -143,12 +151,10 @@ jutsu_code/
 
 ## Key Engineering Decisions
 
-- **No ML training** — all gesture recognition is rule-based, making it fast,
-  lightweight, and fully explainable.
+- **Reuse a trained model, don't train one** — real two-hand signs interlock fingers, which
+  finger rules can't read, so an existing MIT-licensed detector replaced them (Stage 11).
 - **Modular architecture** — each concern (detection, stabilization, sequencing,
   actions) lives in its own file, making the system easy to extend.
-- **Wildcard pattern matching** — allows unreliable fingers to be excluded per sign
-  without breaking the matching system.
 - **Frame-buffer stabilization** — solves real-world flickering without adding latency
   that would feel unresponsive to the user.
 
@@ -168,8 +174,8 @@ jutsu_code/
 
 ## Current Status
 
-Stages 1–10 complete: four combos (one two-handed) with anime-style, particle and sound
-effects, plus a challenge mode. Next: real two-hand Naruto signs from a trained model.
+Stages 1–11 complete: real Naruto hand signs from a trained model, four canon combos
+with anime-style, particle and sound effects, plus a challenge mode.
 
 ---
 
