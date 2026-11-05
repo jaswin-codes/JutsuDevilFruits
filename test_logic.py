@@ -50,8 +50,20 @@ def test_best_sign_picks_top_confident_detection():
     assert best_sign(np.empty((0, 7)), 1.0, 0.1) == (None, None)
 
 
+def test_best_sign_by_screen_half():
+    dets = np.array([[0, 2, 0.70, 40, 40, 80, 80],      # Tora, centre x 60 model px = 120 frame px
+                     [0, 1, 0.90, 200, 40, 260, 80]],   # Ushi, centre x 460 frame px
+                    np.float32)
+    assert best_sign(dets, 0.5, 0.6, (0, 320))[0] == "Tora"   # left half ignores the stronger Ushi
+    assert best_sign(dets, 0.5, 0.6, (320, 640))[0] == "Ushi"
+    assert best_sign(dets[1:], 0.5, 0.6, (0, 320)) == (None, None)   # only the right player signs
+    assert best_sign(np.empty((0, 7)), 0.5, 0.6, (0, 320)) == (None, None)
+
+
 def test_sign_model_runs_on_a_frame():
-    assert SignModel().detect(np.zeros((480, 640, 3), np.uint8)) == (None, None)
+    frame = np.zeros((480, 640, 3), np.uint8)
+    assert SignModel().detect(frame) == (None, None)
+    assert SignModel().detect_halves(frame) == [(None, None), (None, None)]
 
 
 def test_every_combo_has_effect_fields():
