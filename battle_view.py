@@ -70,7 +70,7 @@ def draw_battle(frame, battle, message=None):
     # Cooldowns
     for i, kind in enumerate(COOLDOWN):
         left = battle.cooldown_left(kind)
-        label = f"{COOLDOWN_LABELS[kind]} {'READY' if left == 0 else f'{left:.0f}s'}"
+        label = f"{COOLDOWN_LABELS[kind]} {'READY' if left == 0 else f'{math.ceil(left)}s'}"
         _text(frame, label, (w - 190, h - 20 - 24 * (len(COOLDOWN) - 1 - i)), 0.5,
               (100, 255, 100) if left == 0 else (120, 120, 120), 1)
 

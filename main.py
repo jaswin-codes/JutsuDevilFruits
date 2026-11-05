@@ -1,4 +1,5 @@
 import argparse
+import math
 import time
 import cv2
 import mediapipe as mp
@@ -108,7 +109,7 @@ def main():
                     # Cooling down: drop the combo but keep last_sign, so a held sign can't re-fire every frame
                     sequencer.sequence.clear()
                     if not battle.over():
-                        message = f"{combo['name']} - cooling down {battle.cooldown_left(combo['effect']):.0f}s"
+                        message = f"{combo['name']} - cooling down {math.ceil(battle.cooldown_left(combo['effect']))}s"
                         message_until = time.monotonic() + 1.5
                 elif combo and combo is not active_effect:
                     active_effect = combo
