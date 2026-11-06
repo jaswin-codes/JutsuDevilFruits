@@ -325,3 +325,36 @@ def draw_summon(frame, x, ground_y, size, t, duration=4.0):
         mask *= np.clip(1.3 - t, 0, 1)
         shade = np.interp(t, (0, 1.2), (235, 170))
         frame[:] = (frame + (shade - frame.astype(np.float32)) * mask).astype(np.uint8)
+
+
+def draw_sharingan(frame, centre, radius, t, duration=5.0):
+    """Sharingan: the iris turns red with three tomoe that spin fast, then settle.
+    radius: iris radius in pixels. Drawn at 4x and shrunk, so it stays smooth on a small iris."""
+    fade = float(np.clip(t / 0.3, 0, 1) * np.clip((duration - t) / 0.5, 0, 1))
+    r = radius * 1.1
+    box = _roi(frame, centre, int(r) + 2)
+    if fade <= 0 or box is None:
+        return
+    _add_light(frame, centre, int(r * 3) + 2,
+               lambda layer, c: cv2.circle(layer, c, int(r * 1.4), (0, 0, int(140 * fade)), -1), bloom=1)
+    x0, y0, x1, y1 = box
+    roi = frame[y0:y1, x0:x1]
+    S = 4
+    big = cv2.resize(roi, None, fx=S, fy=S, interpolation=cv2.INTER_LINEAR)
+    c = np.array([(centre[0] - x0) * S, (centre[1] - y0) * S])
+    R = r * S
+    ci = tuple(int(v) for v in c)
+    cv2.circle(big, ci, int(R), (20, 20, 200), -1, cv2.LINE_AA)                         # red iris
+    cv2.circle(big, ci, int(R), (0, 0, 60), max(int(R * 0.12), 1), cv2.LINE_AA)         # dark rim
+    cv2.circle(big, ci, int(R * 0.55), (0, 0, 90), max(int(R * 0.05), 1), cv2.LINE_AA)  # tomoe ring
+    cv2.circle(big, ci, int(R * 0.22), (0, 0, 0), -1, cv2.LINE_AA)                      # pupil
+    spin = 900 * (1 - np.exp(-1.5 * t)) + 60 * t     # degrees: whirls, then turns slowly
+    for k in range(3):
+        a = spin + 120 * k
+        head = c + 0.55 * R * np.array([np.cos(np.deg2rad(a)), np.sin(np.deg2rad(a))])
+        cv2.circle(big, tuple(int(v) for v in head), max(int(R * 0.15), 1), (0, 0, 0), -1, cv2.LINE_AA)
+        for a0, a1, thick in ((a - 28, a, 0.11), (a - 55, a - 28, 0.05)):   # tapering tail behind the head
+            cv2.ellipse(big, ci, (int(0.55 * R), int(0.55 * R)), 0, a0, a1, (0, 0, 0),
+                        max(int(R * thick), 1), cv2.LINE_AA)
+    small = cv2.resize(big, (x1 - x0, y1 - y0), interpolation=cv2.INTER_AREA)
+    roi[:] = (roi + (small.astype(np.float32) - roi) * fade).astype(np.uint8)

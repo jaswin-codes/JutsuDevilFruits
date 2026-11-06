@@ -17,6 +17,10 @@ COMBOS = {
     ("Gassho",):                                 {"name": "RASENGAN",               "colour": (255, 150, 40), "sound": (400, 1200), "effect": "rasengan"},
 }
 
+# Sharingan has no signs: main.py casts it when you cover one eye with a hand and then lower it
+# (gestures.EyeCover). Not in COMBOS, so it is never a challenge target with no signs to show.
+SHARINGAN = {"name": "SHARINGAN", "colour": (30, 30, 220), "sound": (700, 1400), "effect": "sharingan"}
+
 MAX_COMBO_LENGTH = max(len(signs) for signs in COMBOS)
 
 

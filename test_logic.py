@@ -192,7 +192,7 @@ def test_every_effect_has_a_duration_and_cooldown():
     import main
     from battle import COOLDOWN
     from battle_view import COOLDOWN_LABELS
-    effects = {c["effect"] for c in combos.COMBOS.values()}
+    effects = {c["effect"] for c in [*combos.COMBOS.values(), combos.SHARINGAN]}
     assert effects <= set(main.EFFECT_SECONDS) and effects <= set(COOLDOWN) == set(COOLDOWN_LABELS)
 
 
@@ -222,3 +222,47 @@ def test_summon_draws_and_ends():
     frame = np.full((480, 640, 3), 40, np.uint8)
     fx.draw_summon(frame, 320, 480, 320, 4.5)
     assert (frame == 40).all()
+
+
+def test_eye_cover_then_lower_fires_the_sharingan_once():
+    from gestures import EyeCover
+
+    def run(covered_by_frame, fps=30):
+        cover = EyeCover()
+        return sum(cover.update(c, k / fps) for k, c in enumerate(covered_by_frame))
+    assert run([True] * 15 + [False] * 30) == 1               # 0.5 s cover, then lowered: fires once
+    assert run([True] * 3 + [False] * 30) == 0                # hand brushing past the face
+    assert run([True] * 300) == 0                             # still covering: not yet
+    assert run([True] * 150 + [False] * 30) == 0              # 5 s resting on the face isn't the gesture
+    assert run([True] * 10 + [False] * 2 + [True] * 10 + [False] * 30) == 1   # 2-frame detection drop
+    assert run([True] * 15 + [False] * 30 + [True] * 15 + [False] * 30) == 2  # a fresh cover fires again
+
+
+def test_eye_cover_needs_a_palm_on_an_eye():
+    from gestures import EyeCover
+    eyes = [(280, 200), (340, 200)]                           # 60 px apart
+    cover = EyeCover()
+    assert cover.covering(eyes, [(285, 210)])
+    assert not cover.covering(eyes, [(310, 330)])             # hand at the chin
+    assert not cover.covering(eyes, [])
+
+
+def test_iris_centre_and_radius():
+    from gestures import iris
+    points = np.zeros((478, 2))
+    points[[474, 475, 476, 477]] = [(105, 50), (100, 55), (95, 50), (100, 45)]
+    centre, radius = iris(points, [474, 475, 476, 477])
+    assert np.allclose(centre, (100, 50)) and radius == 5
+
+
+def test_sharingan_draws_red_eyes_and_fades_out():
+    import anime_effects as fx
+    for centre in [(0, 0), (639, 479), (-50, 900)]:          # at the edges: no crash
+        fx.draw_sharingan(np.zeros((480, 640, 3), np.uint8), centre, 8, 1.0)
+    frame = np.full((480, 640, 3), 200, np.uint8)
+    fx.draw_sharingan(frame, (320, 240), 20, 1.0)
+    b, g, r = frame[240, 338].astype(int)                    # on the iris, between tomoe ring and rim
+    assert r > 150 and b < 100 and g < 100
+    frame = np.full((480, 640, 3), 200, np.uint8)
+    fx.draw_sharingan(frame, (320, 240), 10, 6.0)            # after its duration: nothing
+    assert (frame == 200).all()
