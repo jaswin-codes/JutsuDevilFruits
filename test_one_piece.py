@@ -80,7 +80,7 @@ def run(g, hands, seconds):
 
 def test_fist_shoots_out_and_stays_in_frame():
     g = Gomu(W, H)
-    (grab, tip, radius, back), = run(g, [fist()], 1.0)
+    (grab, tip, radius, back, _), = run(g, [fist()], 1.0)
     assert g.pistol()
     assert tip[1] < grab[1] - 2 * 60                        # flew up, the way the hand points
     assert tip[1] - 60 >= -1                                # the fist stays inside the frame
@@ -93,7 +93,7 @@ def test_pinch_pull_goes_further_than_the_fingers_then_snaps_back():
     out = None
     for k in range(1, 11):                                  # pull 100 px to the right
         out = g.update([pinch(dx=10 * k)], 1 / 30)
-    (grab, tip, radius, back), = out
+    (grab, tip, radius, back, _), = out
     assert np.allclose(tip - grab, (one_piece.PULL_GAIN * 100, 0))
     assert run(g, [], 1.5) == [] and g.grips == []           # hand gone: snapped back, forgotten
 
@@ -101,9 +101,9 @@ def test_pinch_pull_goes_further_than_the_fingers_then_snaps_back():
 def test_a_dropped_frame_keeps_the_grab():
     g = Gomu(W, H)
     run(g, [fist()], 1.0)
-    (_, far, _, _), = g.update([], 1 / 30)                   # tracking lost the hand for two frames
+    (_, far, *_), = g.update([], 1 / 30)                   # tracking lost the hand for two frames
     g.update([], 1 / 30)
-    (grab, tip, _, _), = g.update([fist()], 1 / 30)
+    (grab, tip, *_), = g.update([fist()], 1 / 30)
     assert np.allclose(tip, far, atol=5) and tip[1] < grab[1] - 2 * 60   # still out, no regrow
 
     g = Gomu(W, H)
@@ -126,7 +126,7 @@ def test_gatling_needs_fast_pumps_not_jitter():
     for k in range(30):
         out = g.update([fist(dx=swing[k % 4])], 1 / 30)
     assert g.gatling() and len(out) == 1 + one_piece.GATLING_FISTS
-    assert len({tuple(np.round(tip)) for _, tip, _, _ in out}) == len(out)   # fanned out, all different
+    assert len({tuple(np.round(tip)) for _, tip, *_ in out}) == len(out)   # fanned out, all different
     run(g, [fist(dx=swing[3])], 1.0)                         # stopped pumping
     assert not g.gatling() and g.pistol()
 
@@ -140,9 +140,9 @@ def test_gatling_fists_all_copy_the_fist():
     grab = np.round(out[0][0]).astype(int)
     frame[grab[1] - 5:grab[1] + 6, grab[0] - 5:grab[0] + 6] = (0, 0, 255)   # red spot on the fist
     clean = frame.copy()
-    for grab_, tip, radius, back in out:
-        stretch(frame, grab_, tip, radius, back, image=clean)
-    red = [tip for _, tip, _, _ in out
+    for grab_, tip, radius, back, width in out:
+        stretch(frame, grab_, tip, radius, back, clean, width)
+    red = [tip for _, tip, *_ in out
            if 0 <= tip[0] < W and 0 <= tip[1] < H and tuple(frame[int(tip[1]), int(tip[0])]) == (0, 0, 255)]
     assert len(red) >= 3 and red[-1] is out[-1][1]          # several fists (some overlap), the main one on top;
     #                                                          without image=clean every later fist copies arm: 0
@@ -162,11 +162,11 @@ def test_gear_second_sign_speeds_up_the_pistol_then_runs_out():
     assert g.gear is None                                    # not held long enough yet
     out = run(g, [two()], 0.4)
     assert g.gear == 2 and out == []                         # switched on; a sign draws no stretch
-    (grab, fast, _, _), = g.update([fist()], 1 / 30)
+    (grab, fast, *_), = g.update([fist()], 1 / 30)
     plain = Gomu(W, H)
-    (_, slow, _, _), = plain.update([fist()], 1 / 30)
+    (_, slow, *_), = plain.update([fist()], 1 / 30)
     assert grab[1] - fast[1] > 2 * (grab[1] - slow[1])       # Pistol flies out much faster
-    (_, fast, _, _), = run(g, [fist()], 0.3)
+    (_, fast, *_), = run(g, [fist()], 0.3)
     assert fast[1] - 60 >= -1                                # yet the overshoot stays in the frame
     run(g, [OPEN], one_piece.GEAR_TIME)
     assert g.gear is None
@@ -195,7 +195,7 @@ def test_gear_fourth_sign_ends_gear_second_and_grows_the_fists():
     run(g, [two()], 0.7)
     run(g, [four()], 0.7)
     assert g.gear == 4                                       # the newer gear replaces the other
-    (_, _, radius, _), = run(g, [fist()], 0.5)
+    (_, _, radius, *_), = run(g, [fist()], 0.5)
     assert np.isclose(radius, 0.9 * 60 * one_piece.GEAR4_FIST)
     assert len(one_piece.puffs([fist()])) == 2               # fist and forearm
     mask = np.zeros((H, W), np.float32)
@@ -242,3 +242,27 @@ def test_a_pinch_survives_a_longer_tracking_gap():
         g.update([fist()], 1 / 30)                           # fingers hide the thumb: misread frames
     g.update([pinch(dx=50)], 1 / 30)
     assert np.allclose(g.grips[0].src, src)
+
+
+def test_stretch_carries_the_fist_whole_and_shades_the_tube():
+    rng = np.random.default_rng(1)
+    frame = np.full((H, W, 3), 160, np.uint8)
+    frame[180:221, 180:221] = rng.integers(0, 255, (41, 41, 3))      # textured "fist" at the grab
+    clean = frame.copy()
+    stretch(frame, (200, 200), (450, 200), 20, back=40, width=(12, 12))
+    assert (frame[190:211, 440:461] == clean[190:211, 190:211]).all()   # fist moved crisp, not smeared
+    mid = frame[:, 300, 0].astype(int)                       # across the tube, halfway along
+    assert mid[200] == 160 and mid[200 - 9] < mid[200] - 30  # flat grey middle, darker towards the side
+    assert mid[200 - 10] < 100 and mid[200 - 16] == 160      # dark outline, then untouched just outside
+    assert (frame[200 + 13:200 + 16, 260:400] == 160).all()  # tube is 12 px half-width, not the fist's 20
+
+
+def test_pinch_tube_tapers_and_the_arm_is_capped():
+    g = Gomu(W, H)
+    g.update([pinch()], 1 / 30)
+    (_, _, radius, back, (base, neck)), = g.update([pinch(dx=40)], 1 / 30)
+    assert base > neck == radius and back > base             # wide on the face, narrow at the fingers
+    big = [(300 + 3 * (x - 300), 400 + 3 * (y - 400)) for x, y in fist()]   # hand right at the camera
+    g = Gomu(W * 3, H * 3)
+    (_, _, radius, _, (arm, _)), = run(g, [big], 0.5)
+    assert arm == one_piece.ARM_MAX < radius                 # a thin arm behind a big fist, not a huge bar
