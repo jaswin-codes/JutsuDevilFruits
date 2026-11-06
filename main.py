@@ -17,6 +17,7 @@ from battle import Battle
 from battle_view import draw_battle
 from duel import Duel
 from duel_view import draw_duel
+import one_piece
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
 EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
@@ -48,6 +49,8 @@ MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
          ("game", "CHALLENGE", "60 s, perform the target jutsu"),
          ("battle", "MONSTER BATTLE", "survive waves of monsters"),
          ("duel", "DUEL", "2 players side by side, best of 3")]
+WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, duel"),
+          ("one_piece", "ONE PIECE", "Gomu Gomu: stretch your fist and your face")]
 
 
 def main():
@@ -62,8 +65,10 @@ def main():
                       help="AR monster battle: defeat waves of monsters with jutsu (R restarts)")
     mode.add_argument("--duel", action="store_true",
                       help="two players side by side, split screen: fight each other with jutsu (R restarts)")
+    mode.add_argument("--one-piece", action="store_true",
+                      help="One Piece: Luffy's rubber stretching (fist = Gomu Gomu no Pistol, pinch and pull)")
     args = parser.parse_args()
-    mode = next((m for m, *_ in MODES if getattr(args, m)), None)
+    mode = next((m for m in [m for m, *_ in MODES] + ["one_piece"] if getattr(args, m)), None)
 
     cap = cv2.VideoCapture(args.camera)
     if not cap.isOpened():
@@ -74,8 +79,15 @@ def main():
 
     print("Jutsu Code")
     print("Press Q to quit, M for the menu.")
-    while mode or (mode := menu(cap)):
-        if play(cap, signs, mode) == "quit":
+    while True:
+        if not mode:
+            world = menu(cap, "JUTSU CODE", WORLDS)
+            mode = menu(cap, "NARUTO", MODES) if world == "naruto" else world
+            if mode is None:
+                break
+            if not mode:
+                continue  # M in the Naruto menu: back to the worlds
+        if (one_piece.play(cap) if mode == "one_piece" else play(cap, signs, mode)) == "quit":
             break
         mode = None       # M pressed: back to the menu
 
@@ -83,8 +95,8 @@ def main():
     cv2.destroyAllWindows()
 
 
-def menu(cap):
-    """Start menu over the live camera image. Returns the picked mode, or None to quit."""
+def menu(cap, title, items):
+    """Menu over the live camera image. Returns the picked item key, "" for M (back), None to quit."""
     while True:
         success, frame = cap.read()
         if not success:
@@ -92,21 +104,22 @@ def menu(cap):
             return None
         frame = (cv2.flip(frame, 1) * 0.35).astype(np.uint8)   # dimmed, so the text stands out
         w = frame.shape[1]
-        title = "JUTSU CODE"
         size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 1.8, 3)[0]
         cv2.putText(frame, title, ((w - size[0]) // 2, 90), cv2.FONT_HERSHEY_DUPLEX, 1.8, (0, 165, 255), 3)
-        for k, (_, name, about) in enumerate(MODES):
+        for k, (_, name, about) in enumerate(items):
             y = 170 + 70 * k
             cv2.putText(frame, f"{k + 1}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
             cv2.putText(frame, about, (150, y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
-        cv2.putText(frame, "Press 1-4 to start, Q to quit, M in a mode returns here", (60, 455),
+        cv2.putText(frame, f"Press 1-{len(items)} to pick, Q to quit, M goes back", (60, 455),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 255), 1)
         cv2.imshow("Jutsu Code", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return None
-        if ord('1') <= key < ord('1') + len(MODES):
-            return MODES[key - ord('1')][0]
+        if key == ord('m'):
+            return ""
+        if ord('1') <= key < ord('1') + len(items):
+            return items[key - ord('1')][0]
 
 
 def play(cap, signs, mode):
