@@ -380,7 +380,7 @@ def play(cap):
         cv2.putText(frame, "ONE PIECE", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 200, 255), 2)
         cv2.putText(frame, "Fist: Pistol (pump: Gatling) | Pinch, pull | V: Gear 2 | 4: Gear 4 | M, Q", (10, h - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1)
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return "quit"

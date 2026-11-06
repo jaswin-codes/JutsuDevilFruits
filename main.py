@@ -56,7 +56,7 @@ WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, d
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition. "
+    parser = argparse.ArgumentParser(description="JutsuDevilFruits - Naruto jutsu and One Piece devil-fruit powers. "
                                                  "Without a mode flag a start menu picks the mode.")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
     mode = parser.add_mutually_exclusive_group()
@@ -80,11 +80,11 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     signs = SignModel()   # real Naruto signs (both hands as one sign); loaded once for every mode
 
-    print("Jutsu Code")
+    print("JutsuDevilFruits")
     print("Press Q to quit, M for the menu.")
     while True:
         if not mode:
-            world = menu(cap, "JUTSU CODE", WORLDS)
+            world = menu(cap, "JUTSU DEVIL FRUITS", WORLDS)
             mode = menu(cap, "NARUTO", MODES, CHART_ITEM) if world == "naruto" else world
             while mode == "chart":   # back to the Naruto menu when the chart closes
                 mode = None if show_chart(cap) == "quit" else menu(cap, "NARUTO", MODES, CHART_ITEM)
@@ -121,7 +121,7 @@ def menu(cap, title, items, zero_item=None):
         first = 0 if zero_item else 1
         cv2.putText(frame, f"Press {first}-{len(items)} to pick, Q to quit, M goes back", (60, 455),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 255), 1)
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return None
@@ -343,7 +343,7 @@ def play(cap, signs, mode):
                 cv2.putText(frame, line, (20, h - 20 - 30 * (len(hud) - 1 - i)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):

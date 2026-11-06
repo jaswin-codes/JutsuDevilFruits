@@ -75,7 +75,7 @@ def show_chart(cap, footer="Any key or M goes back, Q quits", close_keys=None):
             return "quit"
         frame = cv2.flip(frame, 1)
         draw_chart(frame, footer)
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return "quit"
