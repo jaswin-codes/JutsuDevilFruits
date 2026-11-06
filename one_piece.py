@@ -3,6 +3,7 @@
 #          behind it; open the hand and it snaps back.
 #          Pump the fist back and forth fast: Gomu Gomu no Gatling, a blur of fists.
 #   V sign (index + middle up), held: Gear Second for GEAR_TIME s - pink steaming body, faster Pistol.
+#   Four fingers up, thumb tucked, held: Gear Fourth - puffed-up arms, chest and huge fists.
 #   Pinch: grab your face (mouth corner, cheek, ear...) between thumb and index finger and pull:
 #          the skin stretches out past your fingers; let go and it snaps back with a wobble.
 # Only hand landmarks are needed. stretch/Spring/gesture/Gomu are pure (no camera) and tested.
@@ -29,6 +30,9 @@ GEAR_HOLD = 0.5          # seconds a gear sign must be held to switch the gear o
 GEAR_TIME = 10.0         # seconds a gear lasts
 GEAR2_BOOST = 4.0        # Gear Second spring stiffness factor: Pistol is sqrt(4) = 2x faster
 GEAR2_TINT = 0.35        # how pink the body gets (0..1)
+THUMB_IN = 0.5           # "four" sign: thumb tip within this many palm sizes of the ring knuckle
+GEAR4_PUFF = 0.45        # Gear Fourth bulge: the centre is magnified 1 / (1 - 0.45) = 1.8x
+GEAR4_FIST = 1.6         # Gear Fourth fists are this much bigger
 
 
 def stretch(frame, grab, tip, radius, back=None, image=None):
@@ -86,7 +90,7 @@ def _d(p, q):
 
 
 def gesture(lm, pinching=False):
-    """'fist', 'pinch', 'two' (V sign) or None from 21 hand landmarks in pixels. pinching: last
+    """'fist', 'pinch', 'two' (V sign), 'four' (thumb tucked) or None from 21 hand landmarks in pixels. pinching: last
     frame's answer was 'pinch' (looser release threshold, so a grab doesn't flicker)."""
     out = [_d(lm[t], lm[0]) > _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))]
     if not any(out):
@@ -96,10 +100,12 @@ def gesture(lm, pinching=False):
         return "pinch"
     if out == [True, True, False, False]:
         return "two"
+    if all(out) and _d(lm[4], lm[13]) < THUMB_IN * palm:
+        return "four"
     return None
 
 
-GEARS = {"two": 2}            # gear sign -> gear
+GEARS = {"two": 2, "four": 4}   # gear sign -> gear
 
 
 class Grip:
@@ -189,7 +195,7 @@ class Gomu:
             if fist:   # overshoot must not pull the fist back into the arm, nor push it off the frame
                 edge = self._reach(grip.src, grip.dir, grip.palm, cap=math.inf)
                 grip.spring.x = min(max(0.0, float(grip.spring.x @ grip.dir)), edge) * grip.dir
-            radius = grip.palm * (0.9 if fist else 0.45)
+            radius = grip.palm * (0.9 if fist else 0.45) * (GEAR4_FIST if fist and self.gear == 4 else 1)
             if fist and grip.kind == "fist" and self.t < grip.gatling_until:
                 out += self._gatling(grip, radius)
             out.append((grip.src, grip.src + grip.spring.x, radius, radius * (2.0 if fist else 1.2)))
@@ -257,6 +263,40 @@ def steam(particles, mask, count=8):
         particles.burst((xs[i], ys[i]), (70, 70, 80), count=3, speed=60.0, life=1.0)
 
 
+def bulge(frame, centre, radius, strength=GEAR4_PUFF):
+    """Puff up a disc, in place: the middle is magnified, the rim stays put (no seam, no fold)."""
+    c = np.float32(centre)
+    h, w = frame.shape[:2]
+    x0, y0 = np.maximum(np.floor(c - radius), 0).astype(int)
+    x1, y1 = np.minimum(np.ceil(c + radius) + 1, (w, h)).astype(int)
+    if x1 <= x0 or y1 <= y0:
+        return
+    ys, xs = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+    dx, dy = xs - c[0], ys - c[1]
+    r2 = (dx * dx + dy * dy) / radius ** 2
+    scale = np.where(r2 < 1, 1 - strength * (1 - r2), 1)   # source radius r(1 - s + s r^2/R^2) grows with r
+    patch = cv2.remap(frame, c[0] + dx * scale, c[1] + dy * scale, cv2.INTER_LINEAR,
+                      borderMode=cv2.BORDER_REPLICATE)
+    roi = frame[y0:y1, x0:x1]
+    inside = r2 < 1
+    roi[inside] = patch[inside]
+
+
+def puffs(hands, mask=None):
+    """Gear Fourth bulges as (centre, radius): each hand and its forearm, and the chest (middle of
+    the selfie mask) when there is one."""
+    out = []
+    for lm in hands:
+        wrist, knuckle = np.float32(lm[0]), np.float32(lm[9])
+        palm = max(float(np.hypot(*(knuckle - wrist))), 1.0)
+        out += [((wrist + knuckle) / 2, 1.8 * palm), (wrist - (knuckle - wrist) * 1.3, 1.6 * palm)]
+    if mask is not None:
+        ys, xs = np.nonzero(mask > 0.5)
+        if len(xs) > 100:
+            out.append(((xs.mean(), ys.mean() + 0.15 * np.ptp(ys)), 0.6 * math.sqrt(len(xs) / math.pi)))
+    return out
+
+
 def play(cap):
     """One Piece mode loop until Q ("quit") or M ("menu")."""
     detector = HandDetector(max_hands=2)
@@ -273,11 +313,15 @@ def play(cap):
         _, hands = detector.find_hands(frame, draw=False)
         now = time.monotonic()
         dt, last = now - last, now
-        stretches = gomu.update([detector.get_landmark_list(lm, frame.shape) for lm in hands], dt)
+        hands = [detector.get_landmark_list(lm, frame.shape) for lm in hands]
+        stretches = gomu.update(hands, dt)
         mask = None
         if gomu.gear:
             segmenter = segmenter or mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
             mask = segmenter.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).segmentation_mask
+        if gomu.gear == 4:
+            for centre, radius in puffs(hands, mask):
+                bulge(frame, centre, radius)
         clean = frame.copy()
         for grab, tip, radius, back in stretches:
             stretch(frame, grab, tip, radius, back, image=clean)
@@ -302,7 +346,7 @@ def play(cap):
             size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.3, 3)[0]
             cv2.putText(frame, text, ((w - size[0]) // 2, 60), cv2.FONT_HERSHEY_DUPLEX, 1.3, (0, 0, 220), 3)
         cv2.putText(frame, "ONE PIECE", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 200, 255), 2)
-        cv2.putText(frame, "Fist: Pistol (pump: Gatling) | Pinch, pull | V: Gear 2 | M, Q", (10, h - 15),
+        cv2.putText(frame, "Fist: Pistol (pump: Gatling) | Pinch, pull | V: Gear 2 | 4: Gear 4 | M, Q", (10, h - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1)
         cv2.imshow("Jutsu Code", frame)
         key = cv2.waitKey(1) & 0xFF

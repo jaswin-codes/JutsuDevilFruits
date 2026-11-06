@@ -181,3 +181,35 @@ def test_gear_second_tints_only_the_person():
     assert (frame[:100] == before[:100]).all()
     inside = frame[200, 300].astype(int) - before[200, 300]
     assert inside[2] > 30 and inside[2] > inside[1]          # redder (BGR), more red than green
+
+
+def four():
+    lm = list(OPEN)
+    lm[4] = (308, 345)                                      # thumb tucked over the palm
+    return lm
+
+
+def test_gear_fourth_sign_ends_gear_second_and_grows_the_fists():
+    assert gesture(four()) == "four" and gesture(OPEN) is None
+    g = Gomu(W, H)
+    run(g, [two()], 0.7)
+    run(g, [four()], 0.7)
+    assert g.gear == 4                                       # the newer gear replaces the other
+    (_, _, radius, _), = run(g, [fist()], 0.5)
+    assert np.isclose(radius, 0.9 * 60 * one_piece.GEAR4_FIST)
+    assert len(one_piece.puffs([fist()])) == 2               # fist and forearm
+    mask = np.zeros((H, W), np.float32)
+    mask[150:450, 200:440] = 1
+    (centre, r), = one_piece.puffs([], mask)
+    assert 200 < centre[0] < 440 and 150 < centre[1] < 450 and r > 50
+
+
+def test_bulge_magnifies_the_middle_without_seam_or_fold():
+    frame = gradient()
+    before = frame.copy()
+    one_piece.bulge(frame, (150, 200), 80)               # gradient() wraps at x = 256: stay left of it
+    assert (frame[:115] == before[:115]).all() and (frame[290:] == before[290:]).all()   # outside: untouched
+    assert (frame[200, :65] == before[200, :65]).all()
+    line = frame[200, 70:231, 0].astype(int)
+    assert (np.diff(line) >= 0).all()                        # still a ramp: no fold
+    assert line[90] - line[70] < before[200, 160, 0] - before[200, 140, 0] - 2   # magnified in the middle
