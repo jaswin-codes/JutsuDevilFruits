@@ -338,6 +338,7 @@ def play(cap, signs, mode):
                 hud = [f"TARGET: {COMBOS[game.target]['name']}",
                        f"Signs: {' > '.join(game.target)}",
                        f"Score: {game.score}   Time: {game.time_left(now):.0f}s"]
+                draw_sign_strip(frame, game.target, 20, h - 160)   # pictures of the target's signs
             for i, line in enumerate(hud):
                 cv2.putText(frame, line, (20, h - 20 - 30 * (len(hud) - 1 - i)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
