@@ -162,3 +162,23 @@ def test_substitution_wears_off():
     b.monsters = [Monster(W / 2 - 0.13 * W, 0.65 * H, -1, 100, 30)]
     run(b, 0.5)
     assert b.hp == battle.PLAYER_HP - battle.CONTACT_DAMAGE
+
+
+def test_summon_hits_monsters_near_the_slap_only():
+    b = make(100, 150, W - 100)
+    killed = b.summon(120)
+    assert len(killed) == 2 and [m.x for m in b.monsters] == [W - 100]
+
+
+def test_sharingan_slows_monsters_then_wears_off():
+    b, normal = make(0), make(0)
+    b.on_combo("sharingan")
+    run(b, 1)
+    run(normal, 1)
+    assert abs(b.monsters[0].x - normal.monsters[0].x * battle.SHARINGAN_SLOW) < 1e-6
+    run(b, battle.SHARINGAN_SECONDS)
+    run(normal, battle.SHARINGAN_SECONDS)
+    x0, xn = b.monsters[0].x, normal.monsters[0].x
+    run(b, 1)
+    run(normal, 1)
+    assert abs((b.monsters[0].x - x0) - (normal.monsters[0].x - xn)) < 1e-6   # full speed again

@@ -194,3 +194,22 @@ def test_draw_log_draws_then_vanishes():
     draw_log(frame, (320, 300), 120, 5.0)        # after its duration: nothing
     draw_log(frame, (320, 300), 120, -1.0)       # never swapped: nothing
     assert not frame.any()
+
+
+def test_summon_hits_once_and_clones_block_it():
+    d = ready()
+    p1, p2 = d.fighters
+    assert d.summon(0) and p2.hp == PLAYER_HP - duel.SUMMON_DAMAGE
+    p1.on_combo("clone")
+    assert not d.summon(1) and p1.hp == PLAYER_HP
+
+
+def test_sharingan_delays_every_opponent_cooldown():
+    d = ready()
+    p1, p2 = d.fighters
+    p2.on_combo("chidori")
+    chidori_ready = p2.ready_at["chidori"]
+    assert p1.on_combo("sharingan")
+    assert p2.ready_at["chidori"] == chidori_ready + duel.SHARINGAN_DELAY
+    assert p2.cooldown_left("fireball") == duel.SHARINGAN_DELAY     # even a ready jutsu waits
+    assert not p2.on_combo("fireball") and p1.cooldown_left("fireball") == 0

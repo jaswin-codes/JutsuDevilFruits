@@ -49,7 +49,7 @@ def draw_duel(frame, duel, messages=(None, None)):
                   else "SHIELD UP" if f.shielded() else "HIDDEN" if f.hidden()
                   else "SUBSTITUTION READY" if f.swap_armed() else messages[i])
         if notice and duel.fighting():
-            _centred(frame, notice, cx, h - 165, 0.7, (0, 200, 255), w // 2 - 30)
+            _centred(frame, notice, cx, h - 62 - 18 * len(COOLDOWN), 0.7, (0, 200, 255), w // 2 - 30)   # above the list
 
     # Round and score between the two HP bars
     _centred(frame, f"ROUND {duel.round}   {duel.wins[0]} - {duel.wins[1]}", w / 2, h - 26, 0.6, (255, 255, 255))

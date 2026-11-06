@@ -11,6 +11,8 @@ MELEE_DPS = 20         # Chidori; Rasengan's damage is scaled by its size
 MELEE_MAX = 35         # most one Chidori/Rasengan cast can deal: no single jutsu wins a round
 SHIELD_SECONDS = 3.0   # Shadow Clone: the clones take every hit
 HIDDEN_SECONDS = 5.0   # invisible: the opponent's fireball can't find you
+SUMMON_DAMAGE = 30     # five signs plus a slap, so it hits hard, but still can't win a round alone
+SHARINGAN_DELAY = 3.0  # Sharingan: every opponent jutsu becomes ready this much later
 COUNTDOWN = 3.0        # 3-2-1 before each round; jutsu do nothing until FIGHT
 ROUND_BREAK = 3.0      # round-winner screen before the next round starts
 ROUNDS_TO_WIN = 2      # best of 3
@@ -60,7 +62,10 @@ class Fighter:
             self.sub_until = t + SUB_SECONDS
         elif kind == "fireball":
             self.fireball_spent = False
-        else:
+        elif kind == "sharingan":       # it reads the opponent: their cooldowns, ready or not, run longer
+            foe = next(f for f in self.duel.fighters if f is not self)
+            foe.ready_at = {k: max(ready, t) + SHARINGAN_DELAY for k, ready in foe.ready_at.items()}
+        elif kind in ("chidori", "rasengan"):
             self.melee_dealt = 0.0
         return True
 
@@ -152,3 +157,8 @@ class Duel:
             return False
         me.fireball_spent = True
         return self._hit(i, FIREBALL_DAMAGE)
+
+    def summon(self, i):
+        """Player i's summoned creature charges the opponent: one hit, blocked like any other.
+        Returns True on a hit."""
+        return self.fighting() and self._hit(i, SUMMON_DAMAGE)
