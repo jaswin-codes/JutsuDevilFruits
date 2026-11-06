@@ -335,7 +335,7 @@ def play(cap):
         was_gear = gomu.gear
         if gomu.gear:
             text = f"GEAR {'SECOND' if gomu.gear == 2 else 'FOURTH'}  {math.ceil(gomu.gear_left)}"
-            cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_DUPLEX, 0.9, (180, 105, 255), 2)
+            cv2.putText(frame, text, (160, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (180, 105, 255), 2)
 
         pistol = "GATLING" if gomu.gatling() else "PISTOL" if gomu.pistol() else None
         if pistol and pistol != was_pistol:

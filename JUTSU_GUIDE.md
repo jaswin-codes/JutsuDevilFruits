@@ -215,7 +215,7 @@ Both hands work at once: pull both cheeks, or fire a Pistol while pulling your f
 **Tips:** keep the middle finger out while pinching (a closed hand reads as a fist). Hold the
 fist side-on: knuckles facing the camera points it up instead of sideways. For the Gatling, move
 the whole fist across the screen; punching straight at the camera is not seen as a pump. The
-gear timer shows top left.
+gear and its seconds left show next to ONE PIECE at the bottom.
 
 ---
 
