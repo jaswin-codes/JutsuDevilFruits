@@ -17,6 +17,8 @@ from battle import Battle
 from battle_view import draw_battle
 from duel import Duel
 from duel_view import draw_duel
+import goro
+import mera
 import one_piece
 from sign_chart import show_chart, draw_sign_strip
 
@@ -52,7 +54,11 @@ MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
          ("duel", "DUEL", "2 players side by side, best of 3")]
 CHART_ITEM = ("chart", "HAND SIGNS", "learn every sign from photos (H in a game)")
 WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, duel"),
-          ("one_piece", "ONE PIECE", "Gomu Gomu: stretch your fist and your face")]
+          ("one_piece", "ONE PIECE", "devil fruits: rubber, fire, lightning")]
+FRUITS = [("one_piece", "GOMU GOMU", "rubber: stretch your fist and your face"),
+          ("mera", "MERA MERA", "fire: burning fist, punch at the camera for Hiken"),
+          ("goro", "GORO GORO", "lightning: point a finger up, raise both hands for El Thor")]
+FRUIT_PLAY = {"one_piece": one_piece.play, "mera": mera.play, "goro": goro.play}
 
 
 def main():
@@ -70,8 +76,12 @@ def main():
     mode.add_argument("--one-piece", action="store_true",
                       help="One Piece: Luffy's rubber stretching (fist = Pistol, pump it = Gatling, pinch and pull, "
                            "V sign = Gear Second, four fingers = Gear Fourth)")
+    mode.add_argument("--mera", action="store_true",
+                      help="Mera Mera fire fruit (fist = flames, punch at the camera = Hiken)")
+    mode.add_argument("--goro", action="store_true",
+                      help="Goro Goro lightning fruit (finger up = Vari, both open hands raised = El Thor)")
     args = parser.parse_args()
-    mode = next((m for m in [m for m, *_ in MODES] + ["one_piece"] if getattr(args, m)), None)
+    mode = next((m for m in [m for m, *_ in MODES] + list(FRUIT_PLAY) if getattr(args, m)), None)
 
     cap = cv2.VideoCapture(args.camera)
     if not cap.isOpened():
@@ -85,14 +95,15 @@ def main():
     while True:
         if not mode:
             world = menu(cap, "JUTSU DEVIL FRUITS", WORLDS)
-            mode = menu(cap, "NARUTO", MODES, CHART_ITEM) if world == "naruto" else world
+            mode = (menu(cap, "NARUTO", MODES, CHART_ITEM) if world == "naruto" else
+                    menu(cap, "DEVIL FRUITS", FRUITS) if world == "one_piece" else world)
             while mode == "chart":   # back to the Naruto menu when the chart closes
                 mode = None if show_chart(cap) == "quit" else menu(cap, "NARUTO", MODES, CHART_ITEM)
             if mode is None:
                 break
             if not mode:
-                continue  # M in the Naruto menu: back to the worlds
-        if (one_piece.play(cap) if mode == "one_piece" else play(cap, signs, mode)) == "quit":
+                continue  # M in the Naruto or fruit menu: back to the worlds
+        if (FRUIT_PLAY[mode](cap) if mode in FRUIT_PLAY else play(cap, signs, mode)) == "quit":
             break
         mode = None       # M pressed: back to the menu
 
