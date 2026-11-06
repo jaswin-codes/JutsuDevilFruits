@@ -107,10 +107,15 @@ def _d(p, q):
     return math.dist(p, q)
 
 
+def fingers_out(lm):
+    """[index, middle, ring, pinky] extended (tip farther from the wrist than its middle joint)."""
+    return [_d(lm[t], lm[0]) > _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))]
+
+
 def gesture(lm, pinching=False):
     """'fist', 'pinch', 'two' (V sign), 'four' (thumb tucked) or None from 21 hand landmarks in pixels. pinching: last
     frame's answer was 'pinch' (looser release threshold, so a grab doesn't flicker)."""
-    out = [_d(lm[t], lm[0]) > _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))]
+    out = fingers_out(lm)
     palm = max(_d(lm[0], lm[9]), 1.0)
     # Pinch first, whatever the other fingers do (they often curl and hide the thumb near the face).
     # A fist is told apart by its index tip curled back into the palm, not reaching past its knuckle.
