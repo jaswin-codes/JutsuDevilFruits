@@ -18,7 +18,9 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
 - Battle mode: AR monster battle in your webcam image, with waves, HP, score and jutsu cooldowns
 - Duel mode: two players side by side in front of one webcam, split screen, fight each other with jutsu
 - One Piece mode: Luffy's rubber body. Make a fist and it shoots out on a stretched arm
-  (Gomu Gomu no Pistol); pinch your mouth or cheek and pull, and the skin stretches out and snaps back
+  (Gomu Gomu no Pistol), pump it for a Gatling burst of fists; pinch your mouth or cheek and pull, and
+  the skin stretches out and snaps back. Hold a V sign for Gear Second (pink, steaming, faster
+  Pistol) or four fingers for Gear Fourth (puffed-up arms, chest and fists)
 
 ## Current Sign Set
 
@@ -53,7 +55,8 @@ Add a combo of any length with one line in combos.py.
 - battle_view.py: Draws the monsters and battle HUD
 - duel.py: Two-player duel rules (HP, cooldowns, hits, blocks), no camera or drawing
 - duel_view.py: Draws the duel HUD (HP bars, cooldowns, winner screen)
-- one_piece.py: One Piece mode (rubber stretch warp, fist/pinch gestures, snap-back spring, its loop)
+- one_piece.py: One Piece mode (rubber stretch and bulge warps, fist/pinch/gear-sign gestures,
+  snap-back spring, Gatling pump detection, Gear Second/Fourth, its loop)
 - test_logic.py, test_battle.py, test_duel.py, test_one_piece.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression

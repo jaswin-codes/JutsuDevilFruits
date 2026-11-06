@@ -66,7 +66,8 @@ def main():
     mode.add_argument("--duel", action="store_true",
                       help="two players side by side, split screen: fight each other with jutsu (R restarts)")
     mode.add_argument("--one-piece", action="store_true",
-                      help="One Piece: Luffy's rubber stretching (fist = Gomu Gomu no Pistol, pinch and pull)")
+                      help="One Piece: Luffy's rubber stretching (fist = Pistol, pump it = Gatling, pinch and pull, "
+                           "V sign = Gear Second, four fingers = Gear Fourth)")
     args = parser.parse_args()
     mode = next((m for m in [m for m, *_ in MODES] + ["one_piece"] if getattr(args, m)), None)
 
