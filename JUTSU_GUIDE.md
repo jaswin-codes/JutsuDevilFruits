@@ -15,8 +15,9 @@
    ```
    python main.py
    ```
-4. A window opens with a start menu over your webcam feed: press **1** free play,
-   **2** challenge, **3** monster battle or **4** duel
+4. A window opens with a start menu over your webcam feed: press **1** Naruto or
+   **2** One Piece. Naruto then asks for the mode: **1** free play, **2** challenge,
+   **3** monster battle or **4** duel
 5. Press **M** to go back to the menu and **Q** to quit at any time
 
 ---
@@ -192,6 +193,23 @@ Tips:
   two people overlapping can confuse it.
 - No single jutsu wins a round: mix fast Chidori pokes with a well-timed Fireball, and keep
   Shadow Clone or Substitution ready for the opponent's Fireball.
+
+---
+
+## One Piece Mode
+
+Pick **2 One Piece** in the start menu, or run `python main.py --one-piece`. No hand signs here:
+your body is rubber, like Luffy's. Only your hands are tracked.
+
+| Move | How | What happens |
+|------|-----|--------------|
+| Gomu Gomu no Pistol | Make a fist, side-on to the camera | The fist shoots out the way your hand points, the arm stretching behind it, until it reaches the edge of the screen. Open your hand and it snaps back. |
+| Rubber face | Pinch your mouth corner (or cheek, ear...) between thumb and index finger and pull | The skin stretches out twice as far as your fingers move. Let go and it snaps back with a wobble. |
+
+Both hands work at once: pull both cheeks, or fire a Pistol while pulling your face.
+
+**Tips:** keep the middle finger out while pinching (a closed hand reads as a fist). Hold the
+fist side-on: knuckles facing the camera points it up instead of sideways.
 
 ---
 
