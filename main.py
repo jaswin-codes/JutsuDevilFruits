@@ -17,6 +17,8 @@ from battle import Battle
 from battle_view import draw_battle
 from duel import Duel
 from duel_view import draw_duel
+import one_piece
+from sign_chart import show_chart, draw_sign_strip
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
 EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
@@ -48,10 +50,13 @@ MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
          ("game", "CHALLENGE", "60 s, perform the target jutsu"),
          ("battle", "MONSTER BATTLE", "survive waves of monsters"),
          ("duel", "DUEL", "2 players side by side, best of 3")]
+CHART_ITEM = ("chart", "HAND SIGNS", "learn every sign from photos (H in a game)")
+WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, duel"),
+          ("one_piece", "ONE PIECE", "Gomu Gomu: stretch your fist and your face")]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Jutsu Code - hand-sign jutsu recognition. "
+    parser = argparse.ArgumentParser(description="JutsuDevilFruits - Naruto jutsu and One Piece devil-fruit powers. "
                                                  "Without a mode flag a start menu picks the mode.")
     parser.add_argument("--camera", type=int, default=0, help="webcam index (default 0)")
     mode = parser.add_mutually_exclusive_group()
@@ -62,8 +67,11 @@ def main():
                       help="AR monster battle: defeat waves of monsters with jutsu (R restarts)")
     mode.add_argument("--duel", action="store_true",
                       help="two players side by side, split screen: fight each other with jutsu (R restarts)")
+    mode.add_argument("--one-piece", action="store_true",
+                      help="One Piece: Luffy's rubber stretching (fist = Pistol, pump it = Gatling, pinch and pull, "
+                           "V sign = Gear Second, four fingers = Gear Fourth)")
     args = parser.parse_args()
-    mode = next((m for m, *_ in MODES if getattr(args, m)), None)
+    mode = next((m for m in [m for m, *_ in MODES] + ["one_piece"] if getattr(args, m)), None)
 
     cap = cv2.VideoCapture(args.camera)
     if not cap.isOpened():
@@ -72,10 +80,19 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     signs = SignModel()   # real Naruto signs (both hands as one sign); loaded once for every mode
 
-    print("Jutsu Code")
+    print("JutsuDevilFruits")
     print("Press Q to quit, M for the menu.")
-    while mode or (mode := menu(cap)):
-        if play(cap, signs, mode) == "quit":
+    while True:
+        if not mode:
+            world = menu(cap, "JUTSU DEVIL FRUITS", WORLDS)
+            mode = menu(cap, "NARUTO", MODES, CHART_ITEM) if world == "naruto" else world
+            while mode == "chart":   # back to the Naruto menu when the chart closes
+                mode = None if show_chart(cap) == "quit" else menu(cap, "NARUTO", MODES, CHART_ITEM)
+            if mode is None:
+                break
+            if not mode:
+                continue  # M in the Naruto menu: back to the worlds
+        if (one_piece.play(cap) if mode == "one_piece" else play(cap, signs, mode)) == "quit":
             break
         mode = None       # M pressed: back to the menu
 
@@ -83,8 +100,9 @@ def main():
     cv2.destroyAllWindows()
 
 
-def menu(cap):
-    """Start menu over the live camera image. Returns the picked mode, or None to quit."""
+def menu(cap, title, items, zero_item=None):
+    """Menu over the live camera image. Returns the picked item key, "" for M (back), None to quit.
+    zero_item: an extra (key, name, about) row picked with 0."""
     while True:
         success, frame = cap.read()
         if not success:
@@ -92,21 +110,27 @@ def menu(cap):
             return None
         frame = (cv2.flip(frame, 1) * 0.35).astype(np.uint8)   # dimmed, so the text stands out
         w = frame.shape[1]
-        title = "JUTSU CODE"
         size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 1.8, 3)[0]
         cv2.putText(frame, title, ((w - size[0]) // 2, 90), cv2.FONT_HERSHEY_DUPLEX, 1.8, (0, 165, 255), 3)
-        for k, (_, name, about) in enumerate(MODES):
-            y = 170 + 70 * k
-            cv2.putText(frame, f"{k + 1}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
-            cv2.putText(frame, about, (150, y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
-        cv2.putText(frame, "Press 1-4 to start, Q to quit, M in a mode returns here", (60, 455),
+        rows = [(k + 1, *item[1:]) for k, item in enumerate(items)] + ([(0, *zero_item[1:])] if zero_item else [])
+        step = 70 if len(rows) <= 4 else 58
+        for k, (number, name, about) in enumerate(rows):
+            y = 155 + step * k
+            cv2.putText(frame, f"{number}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
+            cv2.putText(frame, about, (150, y + 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
+        first = 0 if zero_item else 1
+        cv2.putText(frame, f"Press {first}-{len(items)} to pick, Q to quit, M goes back", (60, 455),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 255), 1)
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return None
-        if ord('1') <= key < ord('1') + len(MODES):
-            return MODES[key - ord('1')][0]
+        if key == ord('m'):
+            return ""
+        if ord('1') <= key < ord('1') + len(items):
+            return items[key - ord('1')][0]
+        if zero_item and key == ord('0'):
+            return zero_item[0]
 
 
 def play(cap, signs, mode):
@@ -314,17 +338,32 @@ def play(cap, signs, mode):
                 hud = [f"TARGET: {COMBOS[game.target]['name']}",
                        f"Signs: {' > '.join(game.target)}",
                        f"Score: {game.score}   Time: {game.time_left(now):.0f}s"]
+                draw_sign_strip(frame, game.target, 20, h - 160)   # pictures of the target's signs
             for i, line in enumerate(hud):
                 cv2.putText(frame, line, (20, h - 20 - 30 * (len(hud) - 1 - i)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-        cv2.imshow("Jutsu Code", frame)
+        cv2.imshow("JutsuDevilFruits", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             return "quit"
         if key == ord('m'):
             return "menu"
+        if key == ord('h'):
+            paused = show_chart(cap, "H goes back to the game", close_keys=(ord('h'),))
+            if paused == "quit":
+                return "quit"
+            # The world stood still: shift absolute clocks, and dt restarts from now (duel countdown, monsters)
+            if game:
+                game.pause(paused, now)
+            for p in players:
+                p.effect_start += paused
+                if p.message_until > now:   # an expired notice stays expired
+                    p.message_until += paused
+                p.stabilizer.reset()
+                p.sequencer.reset()
+            last_tick = time.monotonic()
         if key == ord('r') and game:
             game = Game(COMBOS, time.monotonic())
         if key == ord('r') and battle:

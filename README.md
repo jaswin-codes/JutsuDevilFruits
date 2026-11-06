@@ -1,6 +1,17 @@
-# Jutsu Code
+# JutsuDevilFruits
 
-Real-time hand-sign recognition with jutsu combo detection and visual effects, built with Python, MediaPipe, and OpenCV.
+Anime powers over your webcam: Naruto jutsu from real hand signs and One Piece devil-fruit
+abilities from hand gestures, with live visual effects, built with Python, MediaPipe, and OpenCV.
+
+## How it started
+
+This project began in July 2026 as **Jutsu Code** (v1, the `jutsu_code_stage1` repository): a
+webcam app that recognised Naruto hand signs with hand-written finger rules and fired a jutsu
+when you made a combo. It has grown since: a trained model now reads the real hand signs, the
+jutsu became anime-style effects that follow your hands and body, and challenge, monster battle
+and two-player duel modes were added. Then it left the Naruto world: a One Piece mode gives you
+Luffy's Gomu Gomu devil fruit (rubber stretching, Pistol, Gatling, Gear Second and Gear Fourth).
+With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 
 ## Features
 
@@ -14,14 +25,20 @@ Real-time hand-sign recognition with jutsu combo detection and visual effects, b
   plus particle bursts and sound (sound on Windows)
 - Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
   is sized by how wide you open your mouth and aimed by turning your head
-- Game mode: 60-second challenge with a target jutsu and score
+- Sign chart: a photo of every hand sign with its name (0 in the Naruto menu, H in any Naruto mode)
+- Game mode: 60-second challenge with a target jutsu and score, with photos of its signs
 - Battle mode: AR monster battle in your webcam image, with waves, HP, score and jutsu cooldowns
 - Duel mode: two players side by side in front of one webcam, split screen, fight each other with jutsu
+- One Piece mode: Luffy's rubber body. Make a fist and it shoots out on a stretched arm
+  (Gomu Gomu no Pistol), pump it for a Gatling burst of fists; pinch your mouth or cheek and pull, and
+  the skin stretches out and snaps back. Hold a V sign for Gear Second (pink, steaming, faster
+  Pistol) or four fingers for Gear Fourth (puffed-up arms, chest and fists)
 
 ## Current Sign Set
 
 Ne, Ushi, Tora, U, Tatsu, Mi, Uma, Hitsuji, Saru, Tori, Inu, I (the 12 zodiac signs) and
-Gassho (prayer hands). See JUTSU_GUIDE.md.
+Gassho (prayer hands). See JUTSU_GUIDE.md. The photos in the sign chart are in assets/signs
+(cropped from the model author's README, MIT; source and licence in assets/signs/SOURCE.md).
 
 ## Current Combos
 
@@ -47,11 +64,15 @@ Add a combo of any length with one line in combos.py.
 - effects.py: Particle bursts and generated jutsu sounds
 - anime_effects.py: Chidori, Rasengan, Shadow Clone and Fireball drawing (numpy + OpenCV)
 - game.py: Timed challenge mode
+- sign_chart.py: The hand-sign photo chart and the challenge's row of sign photos
+- assets/signs/: One photo per sign (source and licence in SOURCE.md)
 - battle.py: Monster battle logic (waves, hits, HP, cooldowns), no camera or drawing
 - battle_view.py: Draws the monsters and battle HUD
 - duel.py: Two-player duel rules (HP, cooldowns, hits, blocks), no camera or drawing
 - duel_view.py: Draws the duel HUD (HP bars, cooldowns, winner screen)
-- test_logic.py, test_battle.py, test_duel.py: Webcam-free tests
+- one_piece.py: One Piece mode (rubber stretch and bulge warps, fist/pinch/gear-sign gestures,
+  snap-back spring, Gatling pump detection, Gear Second/Fourth, its loop)
+- test_logic.py, test_battle.py, test_duel.py, test_one_piece.py, test_sign_chart.py: Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -87,12 +108,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
-   A start menu over the camera picks the mode: 1 free play, 2 challenge, 3 monster battle,
-   4 duel. Press M in any mode to come back to the menu.
+   A start menu over the camera picks the world: 1 Naruto, 2 One Piece. Naruto then picks the
+   mode: 1 free play, 2 challenge, 3 monster battle, 4 duel, or 0 for the hand-sign chart.
+   Press M to go back a menu. In any Naruto mode, H opens the sign chart and H closes it;
+   the game clock, monsters and duel countdown wait while it is open.
    Use another webcam with `python main.py --camera 1`.
    Skip the menu with a flag: `--free`, `--game` (R restarts when time is up),
    `--battle` (R restarts after defeat) or `--duel` (left half = player 1, right half = player 2,
-   best of 3; R starts a rematch).
+   best of 3; R starts a rematch) or `--one-piece`.
 
 4. Quit by pressing Q in the OpenCV window.
 

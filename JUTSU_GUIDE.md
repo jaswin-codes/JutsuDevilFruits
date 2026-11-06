@@ -1,4 +1,4 @@
-# Jutsu Code — User Guide
+# JutsuDevilFruits — User Guide
 
 > How to use the system, what signs to perform, and how to trigger each jutsu.
 
@@ -6,7 +6,7 @@
 
 ## Setup
 
-1. Open VS Code in the `jutsu_code` folder
+1. Open VS Code in the project folder
 2. Activate the virtual environment in the terminal:
    ```
    .\venv\Scripts\Activate
@@ -15,9 +15,12 @@
    ```
    python main.py
    ```
-4. A window opens with a start menu over your webcam feed: press **1** free play,
-   **2** challenge, **3** monster battle or **4** duel
-5. Press **M** to go back to the menu and **Q** to quit at any time
+4. A window opens with a start menu over your webcam feed: press **1** Naruto or
+   **2** One Piece. Naruto then asks for the mode: **1** free play, **2** challenge,
+   **3** monster battle or **4** duel. **0** shows the hand-sign chart: a photo of every sign
+   with its name. Any key goes back
+5. Press **M** to go back to the menu and **Q** to quit at any time. In a Naruto mode, **H**
+   opens the sign chart and **H** closes it. The game is paused while it is open
 
 ---
 
@@ -46,8 +49,9 @@
 
 Signs are read by a trained model (YOLOX-Nano from
 [Kazuhito00/NARUTO-HandSignDetection](https://github.com/Kazuhito00/NARUTO-HandSignDetection),
-MIT licence). It knows the 12 zodiac signs from the anime, plus prayer hands. For photos of each
-sign, see the sign chart in that repository's README.
+MIT licence). It knows the 12 zodiac signs from the anime, plus prayer hands. To see a photo of
+each sign, press **0** in the Naruto menu or **H** during a game. The photos come from that
+repository's README (MIT, see `assets/signs/SOURCE.md`).
 
 | Name on screen | Sign |
 |---|---|
@@ -129,7 +133,8 @@ Cooldown 8 s.
 
 ## Game Mode
 
-Run `python main.py --game`. A target jutsu and its signs appear at the bottom.
+Run `python main.py --game`. A target jutsu and its signs appear at the bottom, with a small
+photo of each sign in order above the names.
 Perform it to score a point and get a new target. You have 60 seconds;
 press **R** to play again.
 
@@ -195,6 +200,29 @@ Tips:
 
 ---
 
+## One Piece Mode
+
+Pick **2 One Piece** in the start menu, or run `python main.py --one-piece`. No hand signs here:
+your body is rubber, like Luffy's. Only your hands are tracked (the gears also find your body
+outline, to tint and puff it up).
+
+| Move | How | What happens |
+|------|-----|--------------|
+| Gomu Gomu no Pistol | Make a fist, side-on to the camera | The fist shoots out the way your hand points, the arm stretching behind it, until it reaches the edge of the screen. Open your hand and it snaps back. |
+| Rubber face | Pinch your mouth corner (or cheek, ear...) between thumb and index finger and pull | The skin stretches out twice as far as your fingers move, as a round tube, wide on your face and narrow at your fingers. Let go and it snaps back with a wobble. |
+| Gomu Gomu no Gatling | Make a fist and pump it back and forth fast (side to side or up and down) | A fan of fists flies out around the Pistol, each one shooting in and out. Stops half a second after you stop pumping. |
+| Gear Second | Hold a V sign (index and middle finger up, ring and pinky curled) for half a second | For 10 seconds your body glows pink-red with steam rising off it, and Pistol flies out twice as fast. |
+| Gear Fourth | Hold up four fingers with the thumb tucked across your palm for half a second | For 10 seconds your hands, forearms and chest puff up like a balloon and Pistol fists are 1.6x bigger. Ends Gear Second (and the other way round). |
+
+Both hands work at once: pull both cheeks, or fire a Pistol while pulling your face.
+
+**Tips:** the other fingers can curl while you pinch; just keep the index finger reaching out to
+the thumb (an index curled into the palm reads as a fist). Hold the fist side-on: knuckles facing the camera points it up instead of sideways. For the Gatling, move
+the whole fist across the screen; punching straight at the camera is not seen as a pump. The
+gear and its seconds left show next to ONE PIECE at the bottom.
+
+---
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -207,4 +235,4 @@ Tips:
 
 ---
 
-*Jutsu Code user guide (2026)*
+*JutsuDevilFruits user guide (2026)*

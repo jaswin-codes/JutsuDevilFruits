@@ -1,4 +1,4 @@
-# Jutsu Code - Project Overview
+# JutsuDevilFruits - Project Overview
 
 > A real-time hand gesture recognition system inspired by Naruto jutsu hand signs,
 > Built using computer vision and gesture sequence detection. 
@@ -11,7 +11,7 @@ but architecture, logic, testing and everything else was designed by myself
 ---
 
 ## Project Summary
-**Jutsu Code** is a Python-based computer vision project that uses a webcam to detect
+**JutsuDevilFruits** (first called Jutsu Code) is a Python-based computer vision project that uses a webcam to detect
 hand gestures in real time, recognise sequences of gestures, and trigger visual effects
 when a predefined jutsu combo is performed. It began with hand-written finger rules and now
 reads real Naruto hand signs with a small pre-trained detector (Stage 11).
@@ -134,7 +134,7 @@ anime's sign orders. MediaPipe hands is kept only to place effects on the palm.
 ## Project Architecture
 
 ```
-jutsu_code/
+JutsuDevilFruits/
 ├── main.py            — Entry point, camera loop, UI rendering
 ├── sign_model.py      — YOLOX-Nano hand-sign model (model/, MIT, Kazuhito00)
 ├── hand_detector.py   — MediaPipe wrapper, palm position for effects

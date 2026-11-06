@@ -13,6 +13,11 @@ class Game:
     def time_left(self, now):
         return max(0.0, self.end - now)
 
+    def pause(self, seconds, now):
+        """The clock stood still for seconds (the sign chart was open). A finished game stays finished."""
+        if not self.over(now):
+            self.end += seconds
+
     def over(self, now):
         return self.time_left(now) == 0
 
