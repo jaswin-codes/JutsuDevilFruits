@@ -1,6 +1,6 @@
 # Hand-sign pictures: source and licence
 
-These 13 pictures show the hand signs Jutsu Code recognises. They are cropped
+These 13 pictures show the hand signs JutsuDevilFruits recognises. They are cropped
 from the photos in the README of the model's source project,
 [Kazuhito00/NARUTO-HandSignDetection](https://github.com/Kazuhito00/NARUTO-HandSignDetection)
 ("Kind of hand-sign" table). They are the author's own webcam photos, not anime frames.

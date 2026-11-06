@@ -1,4 +1,4 @@
-# Jutsu Code — User Guide
+# JutsuDevilFruits — User Guide
 
 > How to use the system, what signs to perform, and how to trigger each jutsu.
 
@@ -6,7 +6,7 @@
 
 ## Setup
 
-1. Open VS Code in the `jutsu_code` folder
+1. Open VS Code in the project folder
 2. Activate the virtual environment in the terminal:
    ```
    .\venv\Scripts\Activate
@@ -235,4 +235,4 @@ gear and its seconds left show next to ONE PIECE at the bottom.
 
 ---
 
-*Jutsu Code user guide (2026)*
+*JutsuDevilFruits user guide (2026)*

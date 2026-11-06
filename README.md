@@ -1,6 +1,17 @@
-# Jutsu Code
+# JutsuDevilFruits
 
-Real-time hand-sign recognition with jutsu combo detection and visual effects, built with Python, MediaPipe, and OpenCV.
+Anime powers over your webcam: Naruto jutsu from real hand signs and One Piece devil-fruit
+abilities from hand gestures, with live visual effects, built with Python, MediaPipe, and OpenCV.
+
+## How it started
+
+This project began in July 2026 as **Jutsu Code** (v1, the `jutsu_code_stage1` repository): a
+webcam app that recognised Naruto hand signs with hand-written finger rules and fired a jutsu
+when you made a combo. It has grown since: a trained model now reads the real hand signs, the
+jutsu became anime-style effects that follow your hands and body, and challenge, monster battle
+and two-player duel modes were added. Then it left the Naruto world: a One Piece mode gives you
+Luffy's Gomu Gomu devil fruit (rubber stretching, Pistol, Gatling, Gear Second and Gear Fourth).
+With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 
 ## Features
 
