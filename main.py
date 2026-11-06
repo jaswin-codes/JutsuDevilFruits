@@ -18,6 +18,7 @@ from battle_view import draw_battle
 from duel import Duel
 from duel_view import draw_duel
 import one_piece
+from sign_chart import show_chart, draw_sign_strip
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
 EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
@@ -49,6 +50,7 @@ MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
          ("game", "CHALLENGE", "60 s, perform the target jutsu"),
          ("battle", "MONSTER BATTLE", "survive waves of monsters"),
          ("duel", "DUEL", "2 players side by side, best of 3")]
+CHART_ITEM = ("chart", "HAND SIGNS", "learn every sign from photos (H in a game)")
 WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, duel"),
           ("one_piece", "ONE PIECE", "Gomu Gomu: stretch your fist and your face")]
 
@@ -83,7 +85,9 @@ def main():
     while True:
         if not mode:
             world = menu(cap, "JUTSU CODE", WORLDS)
-            mode = menu(cap, "NARUTO", MODES) if world == "naruto" else world
+            mode = menu(cap, "NARUTO", MODES, CHART_ITEM) if world == "naruto" else world
+            while mode == "chart":   # back to the Naruto menu when the chart closes
+                mode = None if show_chart(cap) == "quit" else menu(cap, "NARUTO", MODES, CHART_ITEM)
             if mode is None:
                 break
             if not mode:
@@ -96,8 +100,9 @@ def main():
     cv2.destroyAllWindows()
 
 
-def menu(cap, title, items):
-    """Menu over the live camera image. Returns the picked item key, "" for M (back), None to quit."""
+def menu(cap, title, items, zero_item=None):
+    """Menu over the live camera image. Returns the picked item key, "" for M (back), None to quit.
+    zero_item: an extra (key, name, about) row picked with 0."""
     while True:
         success, frame = cap.read()
         if not success:
@@ -107,11 +112,14 @@ def menu(cap, title, items):
         w = frame.shape[1]
         size = cv2.getTextSize(title, cv2.FONT_HERSHEY_DUPLEX, 1.8, 3)[0]
         cv2.putText(frame, title, ((w - size[0]) // 2, 90), cv2.FONT_HERSHEY_DUPLEX, 1.8, (0, 165, 255), 3)
-        for k, (_, name, about) in enumerate(items):
-            y = 170 + 70 * k
-            cv2.putText(frame, f"{k + 1}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
-            cv2.putText(frame, about, (150, y + 28), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
-        cv2.putText(frame, f"Press 1-{len(items)} to pick, Q to quit, M goes back", (60, 455),
+        rows = [(k + 1, *item[1:]) for k, item in enumerate(items)] + ([(0, *zero_item[1:])] if zero_item else [])
+        step = 70 if len(rows) <= 4 else 58
+        for k, (number, name, about) in enumerate(rows):
+            y = 155 + step * k
+            cv2.putText(frame, f"{number}  {name}", (110, y), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255, 255, 255), 2)
+            cv2.putText(frame, about, (150, y + 26), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (190, 190, 190), 1)
+        first = 0 if zero_item else 1
+        cv2.putText(frame, f"Press {first}-{len(items)} to pick, Q to quit, M goes back", (60, 455),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 200, 255), 1)
         cv2.imshow("Jutsu Code", frame)
         key = cv2.waitKey(1) & 0xFF
@@ -121,6 +129,8 @@ def menu(cap, title, items):
             return ""
         if ord('1') <= key < ord('1') + len(items):
             return items[key - ord('1')][0]
+        if zero_item and key == ord('0'):
+            return zero_item[0]
 
 
 def play(cap, signs, mode):
