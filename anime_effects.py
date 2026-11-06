@@ -70,6 +70,28 @@ def draw_chidori(frame, centre, radius, t):
     _add_light(frame, centre, int(radius * 3.2), draw)
 
 
+def draw_bolt(frame, start, end, t):
+    """Lightning strike from start to end: a thick jagged bolt with forks and a flash where it lands."""
+    rng = np.random.default_rng(int(t * 25))    # re-shapes 25x a second = flicker
+    start, end = np.float64(start), np.float64(end)
+    centre = (start + end) / 2
+    length = float(np.hypot(*(end - start)))
+
+    def draw(layer, c):
+        shift = np.float64(c) - np.int32(centre)    # frame -> layer coordinates
+        main = _bolt(rng, start + shift, end + shift, depth=5, spread=0.2)
+        for _ in range(5):    # forks branching off the main bolt
+            p = main[rng.integers(1, len(main))]
+            fork = _bolt(rng, p, p + rng.uniform(-1, 1, 2) * length / 5, depth=3)
+            cv2.polylines(layer, [fork], False, (255, 120, 30), 4, cv2.LINE_AA)
+            cv2.polylines(layer, [fork], False, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.polylines(layer, [main], False, (255, 120, 30), 12, cv2.LINE_AA)
+        cv2.polylines(layer, [main], False, (255, 255, 255), 4, cv2.LINE_AA)
+        cv2.circle(layer, tuple(np.int32(end + shift)), int(30 + 10 * np.sin(t * 40)), (255, 230, 200), -1)
+
+    _add_light(frame, centre, int(length * 0.7) + 60, draw)   # room for forks
+
+
 def draw_rasengan(frame, centre, radius, t):
     """Spinning blue/white chakra sphere: bright core, swirling arms, a ring of wind."""
     radius = max(8, int(radius))
