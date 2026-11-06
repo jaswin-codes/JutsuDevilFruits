@@ -2,14 +2,16 @@
 #   Fist:  Gomu Gomu no Pistol - the fist shoots out the way the hand points, the arm stretching
 #          behind it; open the hand and it snaps back.
 #          Pump the fist back and forth fast: Gomu Gomu no Gatling, a blur of fists.
+#   V sign (index + middle up), held: Gear Second for GEAR_TIME s - pink steaming body, faster Pistol.
 #   Pinch: grab your face (mouth corner, cheek, ear...) between thumb and index finger and pull:
 #          the skin stretches out past your fingers; let go and it snaps back with a wobble.
 # Only hand landmarks are needed. stretch/Spring/gesture/Gomu are pure (no camera) and tested.
 import math
 import time
 import cv2
+import mediapipe as mp
 import numpy as np
-from effects import play_sound
+from effects import ParticleSystem, play_sound
 from hand_detector import HandDetector
 
 PISTOL = 6.0             # fist reach, in palm sizes (wrist to middle knuckle); the frame edge also stops it
@@ -23,6 +25,10 @@ GATLING_PUMPS, GATLING_WINDOW = 4, 1.0   # this many direction reversals within 
 GATLING_HOLD = 0.5       # seconds the Gatling keeps going after the last pump
 GATLING_FISTS = 6        # extra fists drawn around the main one
 GATLING_SPREAD = 0.45    # radians either side of the fist direction
+GEAR_HOLD = 0.5          # seconds a gear sign must be held to switch the gear on
+GEAR_TIME = 10.0         # seconds a gear lasts
+GEAR2_BOOST = 4.0        # Gear Second spring stiffness factor: Pistol is sqrt(4) = 2x faster
+GEAR2_TINT = 0.35        # how pink the body gets (0..1)
 
 
 def stretch(frame, grab, tip, radius, back=None, image=None):
@@ -67,10 +73,11 @@ class Spring:
         self.v = (x - self.x) / max(dt, 1e-3)
         self.x = x
 
-    def step(self, target, dt):
+    def step(self, target, dt, boost=1.0):
+        """boost scales stiffness; damping by its root keeps the same wobble, just faster."""
         h = min(dt, MAX_DT) / 4                  # substeps keep the stiff spring stable
         for _ in range(4):
-            self.v += (-STIFF * (self.x - target) - DAMP * self.v) * h
+            self.v += (-STIFF * boost * (self.x - target) - DAMP * math.sqrt(boost) * self.v) * h
             self.x += self.v * h
 
 
@@ -79,15 +86,20 @@ def _d(p, q):
 
 
 def gesture(lm, pinching=False):
-    """'fist', 'pinch' or None from 21 hand landmarks in pixels. pinching: last frame's answer
-    was 'pinch' (looser release threshold, so a grab doesn't flicker)."""
-    if all(_d(lm[t], lm[0]) < _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))):
+    """'fist', 'pinch', 'two' (V sign) or None from 21 hand landmarks in pixels. pinching: last
+    frame's answer was 'pinch' (looser release threshold, so a grab doesn't flicker)."""
+    out = [_d(lm[t], lm[0]) > _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))]
+    if not any(out):
         return "fist"   # checked first: in a fist the thumb rests on the index finger, like a pinch
     palm = max(_d(lm[0], lm[9]), 1.0)
-    middle_out = _d(lm[12], lm[0]) > _d(lm[10], lm[0])
-    if middle_out and _d(lm[4], lm[8]) < (PINCH_OFF if pinching else PINCH_ON) * palm:
+    if out[1] and _d(lm[4], lm[8]) < (PINCH_OFF if pinching else PINCH_ON) * palm:
         return "pinch"
+    if out == [True, True, False, False]:
+        return "two"
     return None
+
+
+GEARS = {"two": 2}            # gear sign -> gear
 
 
 class Grip:
@@ -108,10 +120,12 @@ class Gomu:
         self.w, self.h = frame_w, frame_h
         self.grips = []
         self.t = 0.0                    # seconds of play, for timers
+        self.gear, self.gear_left = None, 0.0   # active gear (2 or 4) and its seconds left
+        self.sign, self.sign_held, self.sign_missed = None, 0.0, 0   # gear sign being held
 
-    def _reach(self, start, direction, palm):
-        """Fist travel along direction, stopped so the fist stays in the frame."""
-        limits = [PISTOL * palm]
+    def _reach(self, start, direction, palm, cap=PISTOL):
+        """Fist travel along direction (at most cap palm sizes), stopped so the fist stays in the frame."""
+        limits = [cap * palm]
         for p, d, size in zip(start, direction, (self.w, self.h)):
             if abs(d) > 1e-6:
                 limits.append(((size - 1 - p) if d > 0 else p) / abs(d) - palm)
@@ -121,6 +135,10 @@ class Gomu:
         """hands: list of 21-landmark pixel lists. Returns (grab, tip, radius, back) stretches to draw."""
         dt = min(dt, MAX_DT)
         self.t += dt
+        self.gear_left -= dt
+        if self.gear_left <= 0:
+            self.gear = None
+        signs = []
         free = list(self.grips)
         for lm in hands:
             grip = min(free, key=lambda g: _d(g.wrist, lm[0]), default=None)
@@ -132,6 +150,9 @@ class Gomu:
                 free.remove(grip)
             grip.wrist, grip.palm = lm[0], palm
             kind = gesture(lm, grip.kind == "pinch")
+            if kind in GEARS:                                 # a gear sign: not a grab
+                signs.append(kind)
+                kind = None
             if kind is None and grip.kind and grip.missed < GRACE:
                 grip.missed += 1                              # likely a misread: hold the grab as it is
                 continue
@@ -145,10 +166,12 @@ class Gomu:
             if kind == "fist":
                 grip.src = np.mean([lm[0], lm[9]], axis=0)       # fist centre (fingers curled to the palm)
                 grip.dir = np.subtract(lm[9], lm[0]) / palm
-                grip.spring.step(grip.dir * self._reach(grip.src, grip.dir, palm), dt)
+                grip.spring.step(grip.dir * self._reach(grip.src, grip.dir, palm), dt,
+                                 GEAR2_BOOST if self.gear == 2 else 1.0)
                 self._pump(grip, lm[0])
             elif kind == "pinch":
                 grip.spring.hold(PULL_GAIN * (np.mean([lm[4], lm[8]], axis=0) - grip.src), dt)
+        self._gear_sign(signs, dt)
         for grip in free:                                     # hand gone: let go after GRACE frames
             grip.missed += 1
             if grip.missed > GRACE:
@@ -163,14 +186,30 @@ class Gomu:
                 grip.shape = None                             # snapped back and settled
                 continue
             fist = grip.shape == "fist"
-            if fist:   # the spring's overshoot would pull the fist back into the arm: stop at the wrist
-                grip.spring.x = max(0.0, float(grip.spring.x @ grip.dir)) * grip.dir
+            if fist:   # overshoot must not pull the fist back into the arm, nor push it off the frame
+                edge = self._reach(grip.src, grip.dir, grip.palm, cap=math.inf)
+                grip.spring.x = min(max(0.0, float(grip.spring.x @ grip.dir)), edge) * grip.dir
             radius = grip.palm * (0.9 if fist else 0.45)
             if fist and grip.kind == "fist" and self.t < grip.gatling_until:
                 out += self._gatling(grip, radius)
             out.append((grip.src, grip.src + grip.spring.x, radius, radius * (2.0 if fist else 1.2)))
         self.grips = [g for g in self.grips if g.kind or g.shape or g not in free]
         return out
+
+    def _gear_sign(self, signs, dt):
+        """A gear sign held GEAR_HOLD s switches its gear on (ending the other); once per hold."""
+        sign = signs[0] if signs else None
+        if sign is None and self.sign and self.sign_missed < GRACE:
+            self.sign_missed += 1                             # a misread frame doesn't break the hold
+            return
+        self.sign_missed = 0
+        if sign != self.sign:
+            self.sign, self.sign_held = sign, 0.0
+        if sign is None:
+            return
+        before, self.sign_held = self.sign_held, self.sign_held + dt
+        if before < GEAR_HOLD <= self.sign_held:
+            self.gear, self.gear_left = GEARS[sign], GEAR_TIME
 
     def _pump(self, grip, wrist):
         """Count direction reversals of the fist; enough of them in a short window starts the Gatling."""
@@ -205,10 +244,24 @@ class Gomu:
         return any(g.kind == "fist" and np.hypot(*g.spring.x) > 2 * g.palm for g in self.grips)
 
 
+def gear_second(frame, mask, t):
+    """Gear Second look, in place: the person (mask 1) tinted pink-red, pulsing like a heartbeat."""
+    a = (np.clip(mask, 0, 1) * GEAR2_TINT * (0.8 + 0.2 * math.sin(t * 8)))[..., None]
+    frame[:] = (frame * (1 - a) + np.float32((150, 90, 255)) * a).astype(np.uint8)
+
+
+def steam(particles, mask, count=8):
+    """Puffs of steam rising from random points on the person."""
+    ys, xs = np.nonzero(mask > 0.5)
+    for i in np.random.randint(0, len(xs), count) if len(xs) else []:
+        particles.burst((xs[i], ys[i]), (70, 70, 80), count=3, speed=60.0, life=1.0)
+
+
 def play(cap):
     """One Piece mode loop until Q ("quit") or M ("menu")."""
     detector = HandDetector(max_hands=2)
-    gomu, last, was_pistol = None, time.monotonic(), None
+    gomu, last, was_pistol, was_gear = None, time.monotonic(), None, None
+    segmenter, particles = None, ParticleSystem()   # the selfie mask is only made while a gear is on
     while True:
         success, frame = cap.read()
         if not success:
@@ -220,9 +273,25 @@ def play(cap):
         _, hands = detector.find_hands(frame, draw=False)
         now = time.monotonic()
         dt, last = now - last, now
+        stretches = gomu.update([detector.get_landmark_list(lm, frame.shape) for lm in hands], dt)
+        mask = None
+        if gomu.gear:
+            segmenter = segmenter or mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
+            mask = segmenter.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).segmentation_mask
         clean = frame.copy()
-        for grab, tip, radius, back in gomu.update([detector.get_landmark_list(lm, frame.shape) for lm in hands], dt):
+        for grab, tip, radius, back in stretches:
             stretch(frame, grab, tip, radius, back, image=clean)
+        if gomu.gear == 2:
+            gear_second(frame, mask, gomu.t)
+            steam(particles, mask)
+        particles.update(dt)
+        particles.draw(frame)
+        if gomu.gear and gomu.gear != was_gear:
+            play_sound(150, 500)
+        was_gear = gomu.gear
+        if gomu.gear:
+            text = f"GEAR {'SECOND' if gomu.gear == 2 else 'FOURTH'}  {math.ceil(gomu.gear_left)}"
+            cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_DUPLEX, 0.9, (180, 105, 255), 2)
 
         pistol = "GATLING" if gomu.gatling() else "PISTOL" if gomu.pistol() else None
         if pistol and pistol != was_pistol:
@@ -233,7 +302,7 @@ def play(cap):
             size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.3, 3)[0]
             cv2.putText(frame, text, ((w - size[0]) // 2, 60), cv2.FONT_HERSHEY_DUPLEX, 1.3, (0, 0, 220), 3)
         cv2.putText(frame, "ONE PIECE", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 200, 255), 2)
-        cv2.putText(frame, "Fist: Pistol (pump it: Gatling) | Pinch and pull | M menu, Q quit", (10, h - 15),
+        cv2.putText(frame, "Fist: Pistol (pump: Gatling) | Pinch, pull | V: Gear 2 | M, Q", (10, h - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1)
         cv2.imshow("Jutsu Code", frame)
         key = cv2.waitKey(1) & 0xFF

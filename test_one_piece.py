@@ -146,3 +146,38 @@ def test_gatling_fists_all_copy_the_fist():
            if 0 <= tip[0] < W and 0 <= tip[1] < H and tuple(frame[int(tip[1]), int(tip[0])]) == (0, 0, 255)]
     assert len(red) >= 3 and red[-1] is out[-1][1]          # several fists (some overlap), the main one on top;
     #                                                          without image=clean every later fist copies arm: 0
+
+
+def two():
+    lm = list(OPEN)
+    for tip in (16, 20):
+        lm[tip] = (lm[tip - 3][0], 365)                     # ring and pinky curled: V sign
+    return lm
+
+
+def test_gear_second_sign_speeds_up_the_pistol_then_runs_out():
+    assert gesture(two()) == "two"
+    g = Gomu(W, H)
+    run(g, [two()], 0.3)
+    assert g.gear is None                                    # not held long enough yet
+    out = run(g, [two()], 0.4)
+    assert g.gear == 2 and out == []                         # switched on; a sign draws no stretch
+    (grab, fast, _, _), = g.update([fist()], 1 / 30)
+    plain = Gomu(W, H)
+    (_, slow, _, _), = plain.update([fist()], 1 / 30)
+    assert grab[1] - fast[1] > 2 * (grab[1] - slow[1])       # Pistol flies out much faster
+    (_, fast, _, _), = run(g, [fist()], 0.3)
+    assert fast[1] - 60 >= -1                                # yet the overshoot stays in the frame
+    run(g, [OPEN], one_piece.GEAR_TIME)
+    assert g.gear is None
+
+
+def test_gear_second_tints_only_the_person():
+    frame = gradient()
+    before = frame.copy()
+    mask = np.zeros((H, W), np.float32)
+    mask[100:300, 200:400] = 1
+    one_piece.gear_second(frame, mask, 0.0)
+    assert (frame[:100] == before[:100]).all()
+    inside = frame[200, 300].astype(int) - before[200, 300]
+    assert inside[2] > 30 and inside[2] > inside[1]          # redder (BGR), more red than green
