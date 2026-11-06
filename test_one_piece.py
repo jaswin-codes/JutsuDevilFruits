@@ -213,3 +213,32 @@ def test_bulge_magnifies_the_middle_without_seam_or_fold():
     line = frame[200, 70:231, 0].astype(int)
     assert (np.diff(line) >= 0).all()                        # still a ramp: no fold
     assert line[90] - line[70] < before[200, 160, 0] - before[200, 140, 0] - 2   # magnified in the middle
+
+
+def hidden_pinch(dx=0):
+    lm = fist()                                              # middle, ring, pinky curled over the thumb
+    lm[6], lm[7], lm[8] = (283, 318), (280, 312), (276, 318)   # index bent down to meet the thumb
+    lm[4] = (278, 322)
+    return [(x + dx, y) for x, y in lm]
+
+
+def test_pinch_with_the_other_fingers_curled_is_still_a_pinch():
+    assert gesture(hidden_pinch()) == "pinch"                # used to read as a fist (no finger out)
+    loose = fist()
+    loose[4] = (288, 362)                                    # fist: thumb on the curled index tip
+    assert gesture(loose) == "fist"
+    g = Gomu(W, H)
+    g.update([hidden_pinch()], 1 / 30)
+    (grab, tip, *_), = g.update([hidden_pinch(dx=30)], 1 / 30)
+    assert tip[0] - grab[0] > 30                             # pulled, not shot out as a Pistol
+
+
+def test_a_pinch_survives_a_longer_tracking_gap():
+    g = Gomu(W, H)
+    g.update([pinch()], 1 / 30)
+    g.update([pinch(dx=40)], 1 / 30)
+    src = g.grips[0].src.copy()
+    for _ in range(one_piece.PINCH_GRACE - 1):
+        g.update([fist()], 1 / 30)                           # fingers hide the thumb: misread frames
+    g.update([pinch(dx=50)], 1 / 30)
+    assert np.allclose(g.grips[0].src, src)

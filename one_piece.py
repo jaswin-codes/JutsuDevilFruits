@@ -21,6 +21,8 @@ PINCH_ON, PINCH_OFF = 0.3, 0.45   # thumb-index tip gap in palm sizes: grab belo
 STIFF, DAMP = 300.0, 12.0         # rubber spring: underdamped, so a release snaps back with a wobble
 MAX_DT = 0.1
 GRACE = 3                # frames a lost hand or misread gesture keeps its grab (tracking drops a frame often)
+PINCH_GRACE = 6          # a pinch near the face is often half hidden: it keeps its grab longer
+PINCH_REACH = 1.15       # pinch: index tip at least this much farther from the wrist than its knuckle (not curled)
 PUMP_DIST = 0.45         # Gatling: a pump counts once the wrist has travelled this many palm sizes (beats jitter)
 GATLING_PUMPS, GATLING_WINDOW = 4, 1.0   # this many direction reversals within this many seconds
 GATLING_HOLD = 0.5       # seconds the Gatling keeps going after the last pump
@@ -93,11 +95,14 @@ def gesture(lm, pinching=False):
     """'fist', 'pinch', 'two' (V sign), 'four' (thumb tucked) or None from 21 hand landmarks in pixels. pinching: last
     frame's answer was 'pinch' (looser release threshold, so a grab doesn't flicker)."""
     out = [_d(lm[t], lm[0]) > _d(lm[p], lm[0]) for t, p in ((8, 6), (12, 10), (16, 14), (20, 18))]
-    if not any(out):
-        return "fist"   # checked first: in a fist the thumb rests on the index finger, like a pinch
     palm = max(_d(lm[0], lm[9]), 1.0)
-    if out[1] and _d(lm[4], lm[8]) < (PINCH_OFF if pinching else PINCH_ON) * palm:
+    # Pinch first, whatever the other fingers do (they often curl and hide the thumb near the face).
+    # A fist is told apart by its index tip curled back into the palm, not reaching past its knuckle.
+    index_reaches = _d(lm[8], lm[0]) > PINCH_REACH * _d(lm[5], lm[0])
+    if index_reaches and _d(lm[4], lm[8]) < (PINCH_OFF if pinching else PINCH_ON) * palm:
         return "pinch"
+    if not any(out):
+        return "fist"
     if out == [True, True, False, False]:
         return "two"
     if all(out) and _d(lm[4], lm[13]) < THUMB_IN * palm:
@@ -106,6 +111,10 @@ def gesture(lm, pinching=False):
 
 
 GEARS = {"two": 2, "four": 4}   # gear sign -> gear
+
+
+def _grace(grip):
+    return PINCH_GRACE if grip.kind == "pinch" else GRACE
 
 
 class Grip:
@@ -159,7 +168,8 @@ class Gomu:
             if kind in GEARS:                                 # a gear sign: not a grab
                 signs.append(kind)
                 kind = None
-            if kind is None and grip.kind and grip.missed < GRACE:
+            misread = kind is None or (grip.kind == "pinch" and kind == "fist")   # hidden fingers read as a fist
+            if misread and grip.kind and grip.missed < _grace(grip):
                 grip.missed += 1                              # likely a misread: hold the grab as it is
                 continue
             grip.missed = 0
@@ -178,9 +188,9 @@ class Gomu:
             elif kind == "pinch":
                 grip.spring.hold(PULL_GAIN * (np.mean([lm[4], lm[8]], axis=0) - grip.src), dt)
         self._gear_sign(signs, dt)
-        for grip in free:                                     # hand gone: let go after GRACE frames
+        for grip in free:                                     # hand gone: let go after a few frames
             grip.missed += 1
-            if grip.missed > GRACE:
+            if grip.missed > _grace(grip):
                 grip.kind = None
         out = []
         for grip in self.grips:
