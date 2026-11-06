@@ -113,3 +113,36 @@ def test_a_dropped_frame_keeps_the_grab():
     g.update([OPEN], 1 / 30)                                 # one misread frame
     g.update([pinch(dx=50)], 1 / 30)
     assert np.allclose(g.grips[0].src, src)                  # same grab point, pull goes on
+
+
+def test_gatling_needs_fast_pumps_not_jitter():
+    rng = np.random.default_rng(0)
+    g = Gomu(W, H)
+    for _ in range(60):                                      # a still fist with tracking jitter
+        g.update([fist(dx=int(rng.integers(-3, 4)))], 1 / 30)
+    assert not g.gatling()
+
+    swing = [0, 20, 40, 20]                                  # 0.67 palm swings, 15 reversals a second
+    for k in range(30):
+        out = g.update([fist(dx=swing[k % 4])], 1 / 30)
+    assert g.gatling() and len(out) == 1 + one_piece.GATLING_FISTS
+    assert len({tuple(np.round(tip)) for _, tip, _, _ in out}) == len(out)   # fanned out, all different
+    run(g, [fist(dx=swing[3])], 1.0)                         # stopped pumping
+    assert not g.gatling() and g.pistol()
+
+
+def test_gatling_fists_all_copy_the_fist():
+    g = Gomu(W, H)
+    swing = [0, 20, 40, 20]
+    for k in range(30):
+        out = g.update([fist(dx=swing[k % 4])], 1 / 30)
+    frame = gradient()
+    grab = np.round(out[0][0]).astype(int)
+    frame[grab[1] - 5:grab[1] + 6, grab[0] - 5:grab[0] + 6] = (0, 0, 255)   # red spot on the fist
+    clean = frame.copy()
+    for grab_, tip, radius, back in out:
+        stretch(frame, grab_, tip, radius, back, image=clean)
+    red = [tip for _, tip, _, _ in out
+           if 0 <= tip[0] < W and 0 <= tip[1] < H and tuple(frame[int(tip[1]), int(tip[0])]) == (0, 0, 255)]
+    assert len(red) >= 3 and red[-1] is out[-1][1]          # several fists (some overlap), the main one on top;
+    #                                                          without image=clean every later fist copies arm: 0

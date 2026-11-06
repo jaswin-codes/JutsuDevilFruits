@@ -1,6 +1,7 @@
 # one_piece.py - One Piece mode: Luffy's Gomu Gomu rubber body over the webcam image.
 #   Fist:  Gomu Gomu no Pistol - the fist shoots out the way the hand points, the arm stretching
 #          behind it; open the hand and it snaps back.
+#          Pump the fist back and forth fast: Gomu Gomu no Gatling, a blur of fists.
 #   Pinch: grab your face (mouth corner, cheek, ear...) between thumb and index finger and pull:
 #          the skin stretches out past your fingers; let go and it snaps back with a wobble.
 # Only hand landmarks are needed. stretch/Spring/gesture/Gomu are pure (no camera) and tested.
@@ -17,12 +18,18 @@ PINCH_ON, PINCH_OFF = 0.3, 0.45   # thumb-index tip gap in palm sizes: grab belo
 STIFF, DAMP = 300.0, 12.0         # rubber spring: underdamped, so a release snaps back with a wobble
 MAX_DT = 0.1
 GRACE = 3                # frames a lost hand or misread gesture keeps its grab (tracking drops a frame often)
+PUMP_DIST = 0.45         # Gatling: a pump counts once the wrist has travelled this many palm sizes (beats jitter)
+GATLING_PUMPS, GATLING_WINDOW = 4, 1.0   # this many direction reversals within this many seconds
+GATLING_HOLD = 0.5       # seconds the Gatling keeps going after the last pump
+GATLING_FISTS = 6        # extra fists drawn around the main one
+GATLING_SPREAD = 0.45    # radians either side of the fist direction
 
 
-def stretch(frame, grab, tip, radius, back=None):
+def stretch(frame, grab, tip, radius, back=None, image=None):
     """Rubber stretch, in place: what is around `grab` is moved to `tip`, and the strip from
     `back` pixels behind grab (away from tip) up to grab is drawn stretched over the whole gap,
-    inside a band of `radius` pixels. Nothing behind that strip moves, so there is no fold."""
+    inside a band of `radius` pixels. Nothing behind that strip moves, so there is no fold.
+    image: what to read from (default frame), so several stretches of one grab copy the clean fist."""
     G, T = np.float32(grab), np.float32(tip)
     gap = float(np.hypot(*(T - G)))
     if gap < 1:
@@ -41,7 +48,7 @@ def stretch(frame, grab, tip, radius, back=None):
     qx, qy = xs - A[0], ys - A[1]
     a, b = qx * u[0] + qy * u[1], qx * n[0] + qy * n[1]      # along / across the band
     src = np.where(a <= 0, a, np.where(a <= length, a * (back / length), a - gap))
-    patch = cv2.remap(frame, A[0] + src * u[0] + b * n[0], A[1] + src * u[1] + b * n[1],
+    patch = cv2.remap(frame if image is None else image, A[0] + src * u[0] + b * n[0], A[1] + src * u[1] + b * n[1],
                       cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
     dist = np.hypot(a - np.clip(a, 0, length), b)            # distance to the band's centre line
     alpha = np.clip((1 - dist / radius) * 3, 0, 1)[..., None]   # soft outer third
@@ -92,12 +99,15 @@ class Grip:
         self.src, self.palm, self.dir = None, 40.0, np.zeros(2)
         self.spring = Spring()
         self.missed = 0                 # frames in a row the gesture was lost
+        self.anchor, self.heading = np.float64(wrist), None   # Gatling: wrist at the last pump, its direction
+        self.pumps, self.gatling_until = [], -1.0
 
 
 class Gomu:
     def __init__(self, frame_w, frame_h):
         self.w, self.h = frame_w, frame_h
         self.grips = []
+        self.t = 0.0                    # seconds of play, for timers
 
     def _reach(self, start, direction, palm):
         """Fist travel along direction, stopped so the fist stays in the frame."""
@@ -110,6 +120,7 @@ class Gomu:
     def update(self, hands, dt):
         """hands: list of 21-landmark pixel lists. Returns (grab, tip, radius, back) stretches to draw."""
         dt = min(dt, MAX_DT)
+        self.t += dt
         free = list(self.grips)
         for lm in hands:
             grip = min(free, key=lambda g: _d(g.wrist, lm[0]), default=None)
@@ -135,6 +146,7 @@ class Gomu:
                 grip.src = np.mean([lm[0], lm[9]], axis=0)       # fist centre (fingers curled to the palm)
                 grip.dir = np.subtract(lm[9], lm[0]) / palm
                 grip.spring.step(grip.dir * self._reach(grip.src, grip.dir, palm), dt)
+                self._pump(grip, lm[0])
             elif kind == "pinch":
                 grip.spring.hold(PULL_GAIN * (np.mean([lm[4], lm[8]], axis=0) - grip.src), dt)
         for grip in free:                                     # hand gone: let go after GRACE frames
@@ -154,9 +166,39 @@ class Gomu:
             if fist:   # the spring's overshoot would pull the fist back into the arm: stop at the wrist
                 grip.spring.x = max(0.0, float(grip.spring.x @ grip.dir)) * grip.dir
             radius = grip.palm * (0.9 if fist else 0.45)
+            if fist and grip.kind == "fist" and self.t < grip.gatling_until:
+                out += self._gatling(grip, radius)
             out.append((grip.src, grip.src + grip.spring.x, radius, radius * (2.0 if fist else 1.2)))
         self.grips = [g for g in self.grips if g.kind or g.shape or g not in free]
         return out
+
+    def _pump(self, grip, wrist):
+        """Count direction reversals of the fist; enough of them in a short window starts the Gatling."""
+        move = np.subtract(wrist, grip.anchor)
+        dist = np.hypot(*move)
+        if dist < PUMP_DIST * grip.palm:
+            return
+        heading = move / dist
+        if grip.heading is not None and heading @ grip.heading < -0.5:
+            grip.pumps = [t for t in grip.pumps if t > self.t - GATLING_WINDOW] + [self.t]
+            if len(grip.pumps) >= GATLING_PUMPS:
+                grip.gatling_until = self.t + GATLING_HOLD
+        grip.anchor, grip.heading = np.float64(wrist), heading
+
+    def _gatling(self, grip, radius):
+        """Extra fists fanned around the main one, each pumping in and out at its own phase.
+        All share the main grab, so draw them from a clean copy of the frame (stretch's image)."""
+        reach = max(float(np.hypot(*grip.spring.x)), 2 * grip.palm)
+        out = []
+        for i, angle in enumerate(np.linspace(-GATLING_SPREAD, GATLING_SPREAD, GATLING_FISTS)):
+            c, s = math.cos(angle), math.sin(angle)
+            d = np.array([c * grip.dir[0] - s * grip.dir[1], s * grip.dir[0] + c * grip.dir[1]])
+            length = reach * (0.4 + 0.6 * abs(math.sin(self.t * 25 + i * 1.7)))
+            out.append((grip.src, grip.src + d * length, radius * 0.8, radius * 1.6))
+        return out
+
+    def gatling(self):
+        return any(g.kind == "fist" and self.t < g.gatling_until for g in self.grips)
 
     def pistol(self):
         """A fist is out far enough to call the attack."""
@@ -166,7 +208,7 @@ class Gomu:
 def play(cap):
     """One Piece mode loop until Q ("quit") or M ("menu")."""
     detector = HandDetector(max_hands=2)
-    gomu, last, was_pistol = None, time.monotonic(), False
+    gomu, last, was_pistol = None, time.monotonic(), None
     while True:
         success, frame = cap.read()
         if not success:
@@ -178,19 +220,20 @@ def play(cap):
         _, hands = detector.find_hands(frame, draw=False)
         now = time.monotonic()
         dt, last = now - last, now
+        clean = frame.copy()
         for grab, tip, radius, back in gomu.update([detector.get_landmark_list(lm, frame.shape) for lm in hands], dt):
-            stretch(frame, grab, tip, radius, back)
+            stretch(frame, grab, tip, radius, back, image=clean)
 
-        pistol = gomu.pistol()
-        if pistol and not was_pistol:
-            play_sound(250, 700)
+        pistol = "GATLING" if gomu.gatling() else "PISTOL" if gomu.pistol() else None
+        if pistol and pistol != was_pistol:
+            play_sound(250, 700) if pistol == "PISTOL" else play_sound(400, 900)
         was_pistol = pistol
         if pistol:
-            text = "GOMU GOMU NO PISTOL!"
+            text = f"GOMU GOMU NO {pistol}!"
             size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.3, 3)[0]
             cv2.putText(frame, text, ((w - size[0]) // 2, 60), cv2.FONT_HERSHEY_DUPLEX, 1.3, (0, 0, 220), 3)
         cv2.putText(frame, "ONE PIECE", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 200, 255), 2)
-        cv2.putText(frame, "Fist: Pistol | Pinch your mouth and pull | M menu, Q quit", (10, h - 15),
+        cv2.putText(frame, "Fist: Pistol (pump it: Gatling) | Pinch and pull | M menu, Q quit", (10, h - 15),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (230, 230, 230), 1)
         cv2.imshow("Jutsu Code", frame)
         key = cv2.waitKey(1) & 0xFF
