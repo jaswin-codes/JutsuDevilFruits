@@ -356,10 +356,11 @@ def play(cap, signs, mode):
                 return "quit"
             # The world stood still: shift absolute clocks, and dt restarts from now (duel countdown, monsters)
             if game:
-                game.pause(paused)
+                game.pause(paused, now)
             for p in players:
                 p.effect_start += paused
-                p.message_until += paused
+                if p.message_until > now:   # an expired notice stays expired
+                    p.message_until += paused
                 p.stabilizer.reset()
                 p.sequencer.reset()
             last_tick = time.monotonic()

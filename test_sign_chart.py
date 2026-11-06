@@ -38,5 +38,11 @@ def test_sign_strip_shrinks_long_jutsu_to_fit():
 
 def test_pause_moves_the_challenge_deadline():
     game = Game(COMBOS, now=0.0)
-    game.pause(5.0)
+    game.pause(5.0, now=10.0)
     assert game.time_left(60.0) == 5.0
+
+
+def test_pause_after_time_up_keeps_the_game_over():
+    game = Game(COMBOS, now=0.0)
+    game.pause(10.0, now=61.0)
+    assert game.over(61.0)
