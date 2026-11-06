@@ -33,6 +33,10 @@ With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
   (Gomu Gomu no Pistol), pump it for a Gatling burst of fists; pinch your mouth or cheek and pull, and
   the skin stretches out and snaps back. Hold a V sign for Gear Second (pink, steaming, faster
   Pistol) or four fingers for Gear Fourth (puffed-up arms, chest and fists)
+- Mera Mera (fire fruit): a fist held up burns, flames rising off it. Punch the fist at the
+  camera and a Hiken fire blast rushes at you
+- Goro Goro (lightning fruit): point one finger up and lightning crackles around your hand (Vari).
+  Raise both open hands and hold them up for El Thor, a bolt from the top of the screen
 
 ## Current Sign Set
 
@@ -72,7 +76,10 @@ Add a combo of any length with one line in combos.py.
 - duel_view.py: Draws the duel HUD (HP bars, cooldowns, winner screen)
 - one_piece.py: One Piece mode (rubber stretch and bulge warps, fist/pinch/gear-sign gestures,
   snap-back spring, Gatling pump detection, Gear Second/Fourth, its loop)
-- test_logic.py, test_battle.py, test_duel.py, test_one_piece.py, test_sign_chart.py: Webcam-free tests
+- mera.py: Mera Mera mode (fist flames, Hiken punch detection from knuckle growth, its loop)
+- goro.py: Goro Goro mode (pointing and raised-hands gestures, Vari and El Thor, its loop)
+- test_logic.py, test_battle.py, test_duel.py, test_one_piece.py, test_mera.py,
+  test_goro.py, test_sign_chart.py, test_menu.py (fake-camera menu run): Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -110,12 +117,13 @@ python main.py
 
    A start menu over the camera picks the world: 1 Naruto, 2 One Piece. Naruto then picks the
    mode: 1 free play, 2 challenge, 3 monster battle, 4 duel, or 0 for the hand-sign chart.
+   One Piece picks the devil fruit: 1 Gomu Gomu, 2 Mera Mera, 3 Goro Goro.
    Press M to go back a menu. In any Naruto mode, H opens the sign chart and H closes it;
    the game clock, monsters and duel countdown wait while it is open.
    Use another webcam with `python main.py --camera 1`.
    Skip the menu with a flag: `--free`, `--game` (R restarts when time is up),
    `--battle` (R restarts after defeat) or `--duel` (left half = player 1, right half = player 2,
-   best of 3; R starts a rematch) or `--one-piece`.
+   best of 3; R starts a rematch), `--one-piece` (Gomu Gomu), `--mera` or `--goro`.
 
 4. Quit by pressing Q in the OpenCV window.
 
