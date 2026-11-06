@@ -202,7 +202,12 @@ Tips:
 
 ## One Piece Mode
 
-Pick **2 One Piece** in the start menu, or run `python main.py --one-piece`. No hand signs here:
+Pick **2 One Piece** in the start menu, then a devil fruit: **1 Gomu Gomu**, **2 Mera Mera** or
+**3 Goro Goro** (M goes back to the worlds).
+
+### Gomu Gomu (rubber)
+
+Pick **1 Gomu Gomu**, or run `python main.py --one-piece`. No hand signs here:
 your body is rubber, like Luffy's. Only your hands are tracked (the gears also find your body
 outline, to tint and puff it up).
 
@@ -220,6 +225,31 @@ Both hands work at once: pull both cheeks, or fire a Pistol while pulling your f
 the thumb (an index curled into the palm reads as a fist). Hold the fist side-on: knuckles facing the camera points it up instead of sideways. For the Gatling, move
 the whole fist across the screen; punching straight at the camera is not seen as a pump. The
 gear and its seconds left show next to ONE PIECE at the bottom.
+
+### Mera Mera (fire)
+
+Pick **2 Mera Mera**, or run `python main.py --mera`.
+
+| Move | How | What happens |
+|------|-----|--------------|
+| Burning fist | Make a fist | Flames rise off the fist and follow it wherever it goes. |
+| Hiken | Punch the fist straight at the camera, fast | A fire blast swells at your fist and rushes at the screen. Punch again once it has burnt out. |
+
+**Tips:** the punch is read from your knuckles growing on screen (about a third bigger within a
+quarter of a second), so start with the fist an arm's length away and punch quickly. Slowly
+bringing the fist closer does nothing.
+
+### Goro Goro (lightning)
+
+Pick **3 Goro Goro**, or run `python main.py --goro`.
+
+| Move | How | What happens |
+|------|-----|--------------|
+| Vari | Point your index finger up, the other fingers curled | Lightning crackles around your hand for as long as you point. |
+| El Thor | Raise both open hands, fingers up, and hold them for a third of a second | A forked bolt strikes from the top of the screen down between your hands. Lower your hands and raise them again for another. |
+
+**Tips:** keep both hands fully in view with all fingers spread for El Thor; a closed finger
+breaks the hold.
 
 ---
 
