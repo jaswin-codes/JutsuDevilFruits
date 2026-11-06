@@ -16,6 +16,7 @@ PULL_GAIN = 2.0          # pinch pull: the skin travels this many times as far a
 PINCH_ON, PINCH_OFF = 0.3, 0.45   # thumb-index tip gap in palm sizes: grab below ON, let go above OFF
 STIFF, DAMP = 300.0, 12.0         # rubber spring: underdamped, so a release snaps back with a wobble
 MAX_DT = 0.1
+GRACE = 3                # frames a lost hand or misread gesture keeps its grab (tracking drops a frame often)
 
 
 def stretch(frame, grab, tip, radius, back=None):
@@ -90,6 +91,7 @@ class Grip:
         self.kind = self.shape = None   # current gesture / gesture whose stretch is still drawn
         self.src, self.palm, self.dir = None, 40.0, np.zeros(2)
         self.spring = Spring()
+        self.missed = 0                 # frames in a row the gesture was lost
 
 
 class Gomu:
@@ -119,6 +121,10 @@ class Gomu:
                 free.remove(grip)
             grip.wrist, grip.palm = lm[0], palm
             kind = gesture(lm, grip.kind == "pinch")
+            if kind is None and grip.kind and grip.missed < GRACE:
+                grip.missed += 1                              # likely a misread: hold the grab as it is
+                continue
+            grip.missed = 0
             if kind != grip.kind and kind:                    # a new grab: start from scratch
                 grip.spring = Spring()
                 grip.shape = kind
@@ -131,8 +137,10 @@ class Gomu:
                 grip.spring.step(grip.dir * self._reach(grip.src, grip.dir, palm), dt)
             elif kind == "pinch":
                 grip.spring.hold(PULL_GAIN * (np.mean([lm[4], lm[8]], axis=0) - grip.src), dt)
-        for grip in free:                                     # hand gone: let go
-            grip.kind = None
+        for grip in free:                                     # hand gone: let go after GRACE frames
+            grip.missed += 1
+            if grip.missed > GRACE:
+                grip.kind = None
         out = []
         for grip in self.grips:
             if grip.kind is None:
@@ -143,6 +151,8 @@ class Gomu:
                 grip.shape = None                             # snapped back and settled
                 continue
             fist = grip.shape == "fist"
+            if fist:   # the spring's overshoot would pull the fist back into the arm: stop at the wrist
+                grip.spring.x = max(0.0, float(grip.spring.x @ grip.dir)) * grip.dir
             radius = grip.palm * (0.9 if fist else 0.45)
             out.append((grip.src, grip.src + grip.spring.x, radius, radius * (2.0 if fist else 1.2)))
         self.grips = [g for g in self.grips if g.kind or g.shape or g not in free]

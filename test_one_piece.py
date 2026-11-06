@@ -96,3 +96,20 @@ def test_pinch_pull_goes_further_than_the_fingers_then_snaps_back():
     (grab, tip, radius, back), = out
     assert np.allclose(tip - grab, (one_piece.PULL_GAIN * 100, 0))
     assert run(g, [], 1.5) == [] and g.grips == []           # hand gone: snapped back, forgotten
+
+
+def test_a_dropped_frame_keeps_the_grab():
+    g = Gomu(W, H)
+    run(g, [fist()], 1.0)
+    (_, far, _, _), = g.update([], 1 / 30)                   # tracking lost the hand for two frames
+    g.update([], 1 / 30)
+    (grab, tip, _, _), = g.update([fist()], 1 / 30)
+    assert np.allclose(tip, far, atol=5) and tip[1] < grab[1] - 2 * 60   # still out, no regrow
+
+    g = Gomu(W, H)
+    g.update([pinch()], 1 / 30)
+    g.update([pinch(dx=40)], 1 / 30)
+    src = g.grips[0].src.copy()
+    g.update([OPEN], 1 / 30)                                 # one misread frame
+    g.update([pinch(dx=50)], 1 / 30)
+    assert np.allclose(g.grips[0].src, src)                  # same grab point, pull goes on
