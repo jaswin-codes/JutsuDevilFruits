@@ -362,8 +362,10 @@ def play(cap, signs, mode):
                     draw_log(frame, p.palm, p.palm_size * 5, t, EFFECT_SECONDS[kind])
             elif kind == "sharingan":
                 if p.eyes_frame == frame_no:   # only on eyes found this frame, never stale ones
+                    # A real iris is ~5 px (2 px in a duel): size it from the eye gap so the tomoe show
+                    gap = np.linalg.norm(p.eyes[0][0] - p.eyes[1][0])
                     for centre, radius in p.eyes:
-                        draw_sharingan(frame, centre, radius, t, EFFECT_SECONDS[kind])
+                        draw_sharingan(frame, centre, max(radius, 0.18 * gap), t, EFFECT_SECONDS[kind])
             elif kind == "summon":
                 draw_summon(frame, p.summon_x, h, 0.5 * (p.x1 - p.x0), t, EFFECT_SECONDS[kind])
             elif kind == "fireball":
