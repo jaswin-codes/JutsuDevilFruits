@@ -3,6 +3,7 @@ import os
 import numpy as np
 
 from combos import COMBOS
+from game import Game
 from sign_chart import SIGNS, SIGN_DIR, MEANING, chart_cells, draw_sign_strip, paste
 
 
@@ -35,3 +36,7 @@ def test_sign_strip_shrinks_long_jutsu_to_fit():
     assert not frame[:, 631:].any()
 
 
+def test_pause_moves_the_challenge_deadline():
+    game = Game(COMBOS, now=0.0)
+    game.pause(5.0)
+    assert game.time_left(60.0) == 5.0

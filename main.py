@@ -349,6 +349,19 @@ def play(cap, signs, mode):
             return "quit"
         if key == ord('m'):
             return "menu"
+        if key == ord('h'):
+            paused = show_chart(cap, "H goes back to the game", close_keys=(ord('h'),))
+            if paused == "quit":
+                return "quit"
+            # The world stood still: shift absolute clocks, and dt restarts from now (duel countdown, monsters)
+            if game:
+                game.pause(paused)
+            for p in players:
+                p.effect_start += paused
+                p.message_until += paused
+                p.stabilizer.reset()
+                p.sequencer.reset()
+            last_tick = time.monotonic()
         if key == ord('r') and game:
             game = Game(COMBOS, time.monotonic())
         if key == ord('r') and battle:
