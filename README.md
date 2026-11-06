@@ -21,7 +21,8 @@ With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 - Temporal stabilization to reduce flicker
 - Sequence detection for combo matching
 - Anime-style jutsu effects: Chidori lightning and a spinning Rasengan that follow your palm,
-  Shadow Clones of you (selfie segmentation), invisibility against a learned background, and a Fireball from your mouth (face mesh),
+  Shadow Clones of you (selfie segmentation), invisibility against a learned background, a Fireball from your mouth (face mesh),
+  a summoned creature rising from smoke, and Sharingan eyes drawn on your irises,
   plus particle bursts and sound (sound on Windows)
 - Body control: hand spread sizes the Rasengan, Chidori charges while held, and the Fireball
   is sized by how wide you open your mouth and aimed by turning your head
@@ -54,6 +55,8 @@ Sign orders follow the anime:
 - Gassho: RASENGAN (no canon signs)
 - Ne -> Inu -> Tori: HIDING WITH CAMOUFLAGE (invisibility; our own sign pick)
 - Tatsu -> Ne: SUBSTITUTION JUTSU (the next hit lands on a log; our own sign pick)
+- I -> Inu -> Tori -> Saru -> Hitsuji, then slap a palm down: SUMMONING JUTSU
+- No signs: cover one eye with a hand, then lower it: SHARINGAN
 
 Add a combo of any length with one line in combos.py.
 
@@ -66,7 +69,8 @@ Add a combo of any length with one line in combos.py.
 - sequence.py: Sign change sequence tracking
 - combos.py: Combo definitions (name, colour, sound) and lookup
 - effects.py: Particle bursts and generated jutsu sounds
-- anime_effects.py: Chidori, Rasengan, Shadow Clone and Fireball drawing (numpy + OpenCV)
+- anime_effects.py: Chidori, Rasengan, Shadow Clone, Fireball, summon and Sharingan drawing (numpy + OpenCV)
+- gestures.py: Non-sign gestures: the summoning palm slap and the Sharingan eye cover
 - game.py: Timed challenge mode
 - sign_chart.py: The hand-sign photo chart and the challenge's row of sign photos
 - assets/signs/: One photo per sign (source and licence in SOURCE.md)
