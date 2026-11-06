@@ -10,7 +10,8 @@ from battle import COOLDOWN, PLAYER_HP
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 COOLDOWN_LABELS = {"fireball": "FIREBALL", "chidori": "CHIDORI", "rasengan": "RASENGAN", "clone": "CLONE",
-                   "invisible": "INVISIBLE", "substitution": "SUBSTITUTE"}
+                   "invisible": "INVISIBLE", "substitution": "SUBSTITUTE", "summon": "SUMMON",
+                   "sharingan": "SHARINGAN"}
 
 
 def _text(frame, text, org, scale, colour, thick=2):
