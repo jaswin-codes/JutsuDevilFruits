@@ -70,7 +70,7 @@ def test_every_combo_has_effect_fields():
     for combo in combos.COMBOS.values():
         assert set(combo) == {"name", "colour", "sound", "effect"}
         assert combo["effect"] in {"chidori", "rasengan", "clone", "fireball", "invisible",
-                                   "substitution"}
+                                   "substitution", "summon"}
 
 
 def test_particles_burst_move_and_expire():
@@ -171,3 +171,54 @@ def test_invisibility_shows_learned_background_where_the_person_stands():
     # wall shows through (compare averages: the ripple shifts the stripes a few pixels)
     assert np.abs(frame[15:, 32:48].mean((0, 1)) - scene[15:, 32:48].mean((0, 1))).max() < 15
     assert not (frame[30, 32:48] == (0, 0, 255)).all(-1).any()
+
+
+def test_no_combo_appears_inside_another():
+    """match_combo reads the end of the sequence, so a combo found anywhere inside another
+    (prefix, middle or suffix) would fire halfway through it or shadow it."""
+    for a in combos.COMBOS:
+        for b in combos.COMBOS:
+            if a != b:
+                assert not any(b[k:k + len(a)] == a for k in range(len(b) - len(a) + 1)), (a, b)
+
+
+def test_summoning_signs_match_only_the_summon():
+    signs = ("I", "Inu", "Tori", "Saru", "Hitsuji")
+    assert match_combo(["Ne", *signs])["effect"] == "summon"
+    assert all(match_combo(list(signs[:k])) is None for k in range(1, len(signs)))
+
+
+def test_every_effect_has_a_duration_and_cooldown():
+    import main
+    from battle import COOLDOWN
+    from battle_view import COOLDOWN_LABELS
+    effects = {c["effect"] for c in combos.COMBOS.values()}
+    assert effects <= set(main.EFFECT_SECONDS) and effects <= set(COOLDOWN) == set(COOLDOWN_LABELS)
+
+
+def test_palm_slap_needs_a_fast_drop_into_the_bottom():
+    from gestures import PalmSlap
+
+    def fires(ys, fps):
+        slap = PalmSlap(480)
+        return any(slap.update(y, k / fps) for k, y in enumerate(ys))
+    for fps in (10, 30):                       # same answer at any frame rate
+        n = round(0.2 * fps)                   # 0.2 s
+        fast = [250 + 200 * k / n for k in range(n + 1)]
+        assert fires(fast, fps)
+        slow = [250 + 200 * k / (5 * n) for k in range(5 * n + 1)]   # same drop over 1 s
+        assert not fires(slow, fps)
+        assert not fires([y - 200 for y in fast], fps)   # fast but stays high: just a gesture
+        assert not fires([None] * 5, fps)                # no hand, no slap
+
+
+def test_summon_draws_and_ends():
+    import anime_effects as fx
+    for x in (0, 320, 700):
+        frame = np.full((480, 640, 3), 40, np.uint8)
+        fx.draw_summon(frame, x, 480, 320, 1.5)
+        if x == 320:
+            assert (frame != 40).any()
+    frame = np.full((480, 640, 3), 40, np.uint8)
+    fx.draw_summon(frame, 320, 480, 320, 4.5)
+    assert (frame == 40).all()

@@ -271,3 +271,57 @@ def draw_log(frame, centre, size, t, duration=1.2):
             c = (int(x + dx * size), int(y + dy * size * 0.6))
             cv2.circle(frame, c, int(size * (0.15 + 0.5 * t)),
                        (215, 215, 215) if t < 0.25 else (170, 170, 170), -1, cv2.LINE_AA)
+
+
+def draw_summon(frame, x, ground_y, size, t, duration=4.0):
+    """Summoning jutsu: an original boulder beast (mossy rock body, crystal shoulders, three
+    amber eyes) rises out of a smoke burst at ground level. size: body width in pixels."""
+    if not 0 <= t < duration:
+        return
+    s = float(size)
+    rise = 1 - (1 - min(t / 0.7, 1)) ** 3                    # ease out of the ground
+    base = ground_y + (1 - rise) * s * 1.1 + 0.03 * s * np.sin(t * 4) * rise   # then a slow breath
+    layer = frame.copy()                                     # drawn here, blended in to fade out
+    p = lambda dx, dy: (int(x + dx * s), int(base + dy * s))
+    rock, dark, moss = (80, 95, 110), (45, 55, 65), (60, 130, 70)
+    # Arms and fists behind the body
+    for k in (-1, 1):
+        cv2.ellipse(layer, p(0.47 * k, -0.32), (int(0.13 * s), int(0.24 * s)), 20 * k, 0, 360, dark, -1, cv2.LINE_AA)
+        cv2.circle(layer, p(0.52 * k, -0.1), int(0.12 * s), rock, -1, cv2.LINE_AA)
+    # Body: a lumpy boulder, flat on the ground
+    rng = np.random.default_rng(3)
+    ang = np.linspace(np.pi, 2 * np.pi, 13)
+    rad = 1 + rng.uniform(-0.07, 0.07, ang.size)
+    body = [p(0.46 * r * np.cos(a), -0.05 + 0.66 * r * np.sin(a)) for a, r in zip(ang, rad)]
+    cv2.fillPoly(layer, [np.array(body + [p(0.46, 0), p(-0.46, 0)])], rock, cv2.LINE_AA)
+    for (dx, dy), r in zip(((-0.22, -0.5), (0.18, -0.58), (0.3, -0.2)), (0.09, 0.07, 0.06)):   # moss
+        cv2.ellipse(layer, p(dx, dy), (int(r * s * 1.4), int(r * s)), 0, 0, 360, moss, -1, cv2.LINE_AA)
+    for a, b in (((-0.1, -0.62), (-0.02, -0.45)), ((-0.02, -0.45), (-0.12, -0.32)), ((0.3, -0.45), (0.2, -0.36))):
+        cv2.line(layer, p(*a), p(*b), dark, max(int(0.015 * s), 1), cv2.LINE_AA)   # cracks
+    # Crystal clusters on the shoulders
+    for k in (-1, 1):
+        for dx, h in ((0.2, 0.22), (0.28, 0.3), (0.36, 0.18)):
+            tip, l, r = p(k * (dx + 0.04), -0.55 - h), p(k * (dx - 0.04), -0.48), p(k * (dx + 0.05), -0.45)
+            cv2.fillPoly(layer, [np.array([l, tip, r])], (230, 210, 90), cv2.LINE_AA)
+            cv2.line(layer, tip, l, (255, 250, 200), 1, cv2.LINE_AA)
+    # Three amber eyes in a triangle, and a glowing mouth slit
+    for dx, dy in ((-0.11, -0.36), (0.11, -0.36), (0.0, -0.46)):
+        cv2.circle(layer, p(dx, dy), int(0.045 * s), (40, 190, 255), -1, cv2.LINE_AA)
+        cv2.ellipse(layer, p(dx, dy), (max(int(0.01 * s), 1), int(0.035 * s)), 0, 0, 360, (0, 0, 0), -1, cv2.LINE_AA)
+    cv2.ellipse(layer, p(0, -0.22), (int(0.14 * s), int(0.025 * s)), 0, 0, 360, (30, 120, 255), -1, cv2.LINE_AA)
+    fade = float(np.clip((duration - t) / 0.5, 0, 1))
+    cv2.addWeighted(layer, fade, frame, 1 - fade, 0, dst=frame)
+    # Smoke burst at the ground, in front: thick at first so the rise reads as "appearing".
+    # Puffs go on a 1/4-size mask that is blurred into a soft cloud.
+    if t < 1.2:
+        h, w = frame.shape[:2]
+        mask = np.zeros((h // 4, w // 4), np.float32)
+        rng = np.random.default_rng(11)
+        grow = (0.25 + 0.5 * min(t, 0.6)) * (1 - max(t - 0.6, 0) / 0.6)   # puffs out, then thins away
+        for dx, dy in rng.uniform((-0.7, -0.5), (0.7, 0.05), (16, 2)):
+            cv2.circle(mask, (int((x + dx * s) / 4), int((ground_y + dy * s * (1 + t)) / 4)),
+                       int(s * grow * 0.1), 1.0, -1)
+        mask = cv2.resize(cv2.GaussianBlur(mask, (0, 0), 3), (w, h))[..., None]
+        mask *= np.clip(1.3 - t, 0, 1)
+        shade = np.interp(t, (0, 1.2), (235, 170))
+        frame[:] = (frame + (shade - frame.astype(np.float32)) * mask).astype(np.uint8)
