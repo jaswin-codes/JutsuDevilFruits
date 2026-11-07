@@ -10,7 +10,8 @@ webcam app that recognised Naruto hand signs with hand-written finger rules and 
 when you made a combo. It has grown since: a trained model now reads the real hand signs, the
 jutsu became anime-style effects that follow your hands and body, and challenge, monster battle
 and two-player duel modes were added. Then it left the Naruto world: a One Piece mode gives you
-Luffy's Gomu Gomu devil fruit (rubber stretching, Pistol, Gatling, Gear Second and Gear Fourth).
+Luffy's Gomu Gomu devil fruit (rubber stretching, Pistol, Gatling, Gear Second and Gear Fourth),
+then Mera Mera and Goro Goro, and a Bleach world lets you draw a sword out of thin air and transform.
 With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 
 ## Features
@@ -38,6 +39,10 @@ With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
   camera and a Hiken fire blast rushes at you
 - Goro Goro (lightning fruit): point one finger up and lightning crackles around your hand (Vari).
   Raise both open hands and hold them up for El Thor, a bolt from the top of the screen
+- Bleach: hold a fist low and pull it up fast to draw a glowing sword; it follows your fist's
+  angle. Swing it for Getsuga Tensho (a flying crescent slash). Grip the sword wrist with your
+  other hand for a second for Bankai (dark room, red flames, black blade). Drag an open hand
+  down over your face for a Hollow mask (bigger slashes for 15 s)
 
 ## Current Sign Set
 
@@ -82,8 +87,10 @@ Add a combo of any length with one line in combos.py.
   snap-back spring, Gatling pump detection, Gear Second/Fourth, its loop)
 - mera.py: Mera Mera mode (fist flames, Hiken punch detection from knuckle growth, its loop)
 - goro.py: Goro Goro mode (pointing and raised-hands gestures, Vari and El Thor, its loop)
+- bleach.py: Bleach mode (sword draw, swing, wrist grip and face swipe detection; sword, Getsuga,
+  Bankai aura and Hollow mask drawing; its loop)
 - test_logic.py, test_battle.py, test_duel.py, test_one_piece.py, test_mera.py,
-  test_goro.py, test_sign_chart.py, test_menu.py (fake-camera menu run): Webcam-free tests
+  test_goro.py, test_bleach.py, test_sign_chart.py, test_menu.py (fake-camera menu run): Webcam-free tests
 - JUTSU_GUIDE.md: End-user guide for sign execution
 - PROJECT_OVERVIEW.md: Detailed build notes and stage progression
 
@@ -119,7 +126,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-   A start menu over the camera picks the world: 1 Naruto, 2 One Piece. Naruto then picks the
+   A start menu over the camera picks the world: 1 Naruto, 2 One Piece, 3 Bleach. Naruto then picks the
    mode: 1 free play, 2 challenge, 3 monster battle, 4 duel, or 0 for the hand-sign chart.
    One Piece picks the devil fruit: 1 Gomu Gomu, 2 Mera Mera, 3 Goro Goro.
    Press M to go back a menu. In any Naruto mode, H opens the sign chart and H closes it;
@@ -127,7 +134,7 @@ python main.py
    Use another webcam with `python main.py --camera 1`.
    Skip the menu with a flag: `--free`, `--game` (R restarts when time is up),
    `--battle` (R restarts after defeat) or `--duel` (left half = player 1, right half = player 2,
-   best of 3; R starts a rematch), `--one-piece` (Gomu Gomu), `--mera` or `--goro`.
+   best of 3; R starts a rematch), `--one-piece` (Gomu Gomu), `--mera`, `--goro` or `--bleach`.
 
 4. Quit by pressing Q in the OpenCV window.
 
