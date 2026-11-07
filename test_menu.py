@@ -4,6 +4,7 @@ import time
 import cv2
 import numpy as np
 import pytest
+import bleach
 import goro
 import main
 import mera
@@ -56,7 +57,7 @@ def run_main(monkeypatch):
         monkeypatch.setattr(cv2, "destroyAllWindows", lambda: None)
         monkeypatch.setattr(cv2, "waitKey", lambda _: ord(next(keys, "q")))
         monkeypatch.setattr(time, "monotonic", lambda: next(clock))
-        for module in (mera, goro, one_piece):
+        for module in (mera, goro, one_piece, bleach):
             monkeypatch.setattr(module, "HandDetector", detector_for(module.__name__))
             monkeypatch.setattr(module, "play_sound", lambda *a: sounds.append(a))
         main.main()
@@ -78,6 +79,13 @@ def test_one_piece_opens_the_fruit_menu_and_plays_each_new_fruit(run_main):
     assert (200, 600) in sounds and (900, 150) in sounds   # Hiken and El Thor fired
 
 
-@pytest.mark.parametrize("flag, module", [("--one-piece", "one_piece"), ("--mera", "mera"), ("--goro", "goro")])
+@pytest.mark.parametrize("flag, module", [("--one-piece", "one_piece"), ("--mera", "mera"), ("--goro", "goro"),
+                                                ("--bleach", "bleach")])
 def test_fruit_flags_skip_the_menus(run_main, flag, module):
     assert run_main([flag], frames(3))[1] == [module]
+
+
+def test_bleach_is_the_third_world_and_draws_a_sword(run_main):
+    rise = [[[(x, y - 50 * k) for x, y in fist()]] for k in range(3)]   # a low fist pulled up fast
+    sounds, used = run_main([], ["3"] + frames(5) + ["m", "q"], {"bleach": rise})
+    assert used == ["bleach"] and (300, 1400) in sounds

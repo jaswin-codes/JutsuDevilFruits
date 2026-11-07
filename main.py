@@ -19,6 +19,7 @@ from battle_view import draw_battle
 from duel import Duel
 from duel_view import draw_duel
 import goro
+import bleach
 import mera
 import one_piece
 from sign_chart import show_chart, draw_sign_strip
@@ -63,11 +64,13 @@ MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
          ("duel", "DUEL", "2 players side by side, best of 3")]
 CHART_ITEM = ("chart", "HAND SIGNS", "learn every sign from photos (H in a game)")
 WORLDS = [("naruto", "NARUTO", "hand-sign jutsu: free play, challenge, battle, duel"),
-          ("one_piece", "ONE PIECE", "devil fruits: rubber, fire, lightning")]
+          ("one_piece", "ONE PIECE", "devil fruits: rubber, fire, lightning"),
+          ("bleach", "BLEACH", "draw a sword from thin air, Getsuga, Bankai, Hollow mask")]
 FRUITS = [("one_piece", "GOMU GOMU", "rubber: stretch your fist and your face"),
           ("mera", "MERA MERA", "fire: burning fist, punch at the camera for Hiken"),
           ("goro", "GORO GORO", "lightning: point a finger up, raise both hands for El Thor")]
-FRUIT_PLAY = {"one_piece": one_piece.play, "mera": mera.play, "goro": goro.play}
+# Modes with a loop of their own (the rest run the Naruto loop): the fruits, and Bleach
+FRUIT_PLAY = {"one_piece": one_piece.play, "mera": mera.play, "goro": goro.play, "bleach": bleach.play}
 
 
 def main():
@@ -89,6 +92,9 @@ def main():
                       help="Mera Mera fire fruit (fist = flames, punch at the camera = Hiken)")
     mode.add_argument("--goro", action="store_true",
                       help="Goro Goro lightning fruit (finger up = Vari, both open hands raised = El Thor)")
+    mode.add_argument("--bleach", action="store_true",
+                      help="Bleach (fist low, pull up = draw a sword, swing = Getsuga Tensho, "
+                           "grip the sword wrist = Bankai, open hand down the face = Hollow mask)")
     args = parser.parse_args()
     mode = next((m for m in [m for m, *_ in MODES] + list(FRUIT_PLAY) if getattr(args, m)), None)
 
