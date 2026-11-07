@@ -29,7 +29,8 @@ SWING_WINDOW = 0.15   # ...within this many seconds
 GETSUGA_TIME = 1.0    # seconds a slash flies
 GETSUGA_SPEED = 900.0 # px/s
 SHEATHE = 1.5         # seconds without the sword fist and the sword is gone
-STICK = 2.5           # the sword stays in the fist nearest the last one, within this many palm sizes
+STICK = 4.0           # the sword stays in the fist nearest the last one, within this many palm sizes
+                      # (a fast swing at a low frame rate moves the fist far in one frame)
 GRIP = 1.3            # Bankai: the other hand's palm within this many palm sizes of the sword wrist...
 BANKAI_HOLD = 1.0     # ...for this long
 GRIP_GRACE = 0.2      # overlapping hands drop out of tracking: a gap this short keeps the grip timer
@@ -321,7 +322,8 @@ def play(cap):
         dt, last = now - last, now
         hands = [detector.get_landmark_list(lm, frame.shape) for lm in found]
         face = None
-        if soul.masked() or any(fist_centre(lm)[1] < 0.6 * h for lm in hands):
+        # Face mesh is costly: only while masked or an open hand (the only kind that swipes) is up near the face
+        if soul.masked() or any(all(fingers_out(lm)) and fist_centre(lm)[1] < 0.6 * h for lm in hands):
             face_mesh = face_mesh or mp.solutions.face_mesh.FaceMesh(refine_landmarks=True)
             faces = face_mesh.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).multi_face_landmarks
             if faces:

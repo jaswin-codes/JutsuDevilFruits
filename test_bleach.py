@@ -57,6 +57,12 @@ def test_swinging_fires_one_getsuga_but_not_right_after_drawing():
     assert not soul.slashes                       # gone once it has flown
 
 
+def test_the_sword_follows_a_fist_that_jumps_far_in_one_frame():
+    soul = drawn()
+    events = flat(run(soul, [[moved(fist(), dx=220, dy=-100)]]))
+    assert soul.fist[0] > 500 and "sheathe" not in events       # the sword moved with the fist
+
+
 def test_small_moves_dont_swing():
     soul = drawn()
     assert not flat(run(soul, [[moved(fist(), dx=20 * k, dy=-100)] for k in range(10)]))
