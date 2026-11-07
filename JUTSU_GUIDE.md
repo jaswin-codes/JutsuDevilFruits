@@ -131,6 +131,27 @@ Cooldown 8 s.
 
 ---
 
+### 🪨 Summoning Jutsu
+**Sequence:** `I → Inu → Tori → Saru → Hitsuji` (Boar, Dog, Bird, Monkey, Ram), then **slap a palm
+down** toward the bottom of the screen within 4 seconds ("SLAP A PALM DOWN!" shows while it waits).
+
+**Effect:** A smoke burst where your hand lands, and a boulder beast with crystal shoulders and
+three amber eyes rises out of it for 4 seconds. The slap has to be quick: a hand lowered slowly
+doesn't count. In battle the creature crushes the monsters near it; in a duel it charges your
+opponent.
+
+---
+
+### 👁️ Sharingan
+**Sequence:** none. **Cover one eye with your hand, then lower it** (hold it there for about
+half a second, no longer than 3 seconds).
+
+**Effect:** Your eyes turn red with three spinning tomoe for 5 seconds. Face the camera with
+your eyes open so the face tracker can find your irises. In battle the monsters slow to half
+speed; in a duel every one of your opponent's jutsu takes 3 seconds longer to be ready.
+
+---
+
 ## Game Mode
 
 Run `python main.py --game`. A target jutsu and its signs appear at the bottom, with a small
@@ -155,6 +176,8 @@ tougher and faster monsters. Press **R** to fight again after a defeat.
 | Shadow Clone | Block | For 3 s your clones hold the monsters back and you take no damage. | 12 s |
 | Hiding with Camouflage | Escape | Monsters lose track of you and stand still for 5 s. | 15 s |
 | Substitution | Dodge | The next monster to reach you within 4 s hits a log instead. | 8 s |
+| Summoning | Area | Slap a palm down toward a side: the creature lands there and deals 150 to every monster within a quarter screen of it. | 20 s |
+| Sharingan | Slow | Monsters walk at half speed for 5 s. | 15 s |
 
 A jutsu still on cooldown shows a "cooling down" notice and does nothing; its timer is at
 the bottom right. Your HP, wave and score are at the bottom left.
@@ -186,6 +209,8 @@ between the HP bars. After the match, press **R** for a rematch.
 | Shadow Clone | Your clones take every hit for 3 s, including a fireball, which is used up. | - | 12 s |
 | Hiding with Camouflage | The opponent's fireball can't find you for 5 s (Chidori and Rasengan still can). | - | 15 s |
 | Substitution | The next hit within 4 s, of any jutsu, lands on a log instead. | - | 8 s |
+| Summoning | The creature charges your opponent once, as soon as it appears. Shadow Clone and Substitution block it. | 30 | 20 s |
+| Sharingan | Every opponent jutsu, ready or cooling down, is ready 3 s later. | - | 15 s |
 
 Each player's HP bar and cooldowns are in their bottom corner; a red edge round your half
 means you were hit.

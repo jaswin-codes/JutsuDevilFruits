@@ -8,10 +8,11 @@ from hand_detector import HandDetector
 from sign_model import SignModel
 from stabilizer import SignStabilizer
 from sequence import SequenceDetector
-from combos import COMBOS, match_combo, MAX_COMBO_LENGTH
+from combos import COMBOS, SHARINGAN, match_combo, MAX_COMBO_LENGTH
 from effects import ParticleSystem, play_sound
 from anime_effects import (draw_chidori, draw_rasengan, draw_clones, draw_fireball, face_aim,
-                           fireball_path, draw_invisible, draw_log, BackgroundPlate, CLONE_OFFSETS)
+                           fireball_path, draw_invisible, draw_log, draw_summon, draw_sharingan, BackgroundPlate, CLONE_OFFSETS)
+from gestures import EyeCover, PalmSlap, iris
 from game import Game
 from battle import Battle
 from battle_view import draw_battle
@@ -24,10 +25,13 @@ from sign_chart import show_chart, draw_sign_strip
 
 # Max seconds per effect; hand-held ones also end once the hand is gone
 EFFECT_SECONDS = {"chidori": 8.0, "rasengan": 8.0, "clone": 3.0, "fireball": 2.5, "invisible": 8.0,
-                  "substitution": 1.5}
+                  "substitution": 1.5, "summon": 4.0, "sharingan": 5.0}
 HAND_EFFECTS = ("chidori", "rasengan")
 MISS_LIMIT = 15        # frames with no hand or sign (~0.5s) before the combo is wiped
 PALM_POINTS = (0, 5, 9, 13, 17)   # wrist and knuckles
+IRISES = [sorted({k for edge in ring for k in edge}) for ring in      # face-mesh landmark indices
+          (mp.solutions.face_mesh.FACEMESH_LEFT_IRIS, mp.solutions.face_mesh.FACEMESH_RIGHT_IRIS)]
+SLAP_SECONDS = 4.0     # after the summoning signs, this long to slap a palm down
 
 
 class Player:
@@ -42,10 +46,15 @@ class Player:
         self.effect_start = 0.0
         self.palm, self.palm_size = None, 40.0   # smoothed palm centre and hand size (wrist to middle knuckle)
         self.hand_spread = None     # distance between two palms (Rasengan size), None with one hand
+        self.centres = []           # raw palm centres of this player's hands this frame
+        self.armed, self.armed_until, self.slap = None, 0.0, None   # summon waiting for the palm slap
+        self.summon_x = 0.0         # where the summoned creature stands
         self.missed_frames = 0
         self.mouth = None           # last seen lip centre (Fireball)
         self.fire_scale, self.fire_dir = 1.0, 0.0   # mouth opening and head turn, locked at launch
         self.message, self.message_until = None, 0.0   # short notice, e.g. a cooldown
+        self.eyes, self.eyes_frame = None, -1   # last seen irises [(centre, radius)] x2, and the frame no.
+        self.cover = EyeCover()     # Sharingan trigger
 
 
 MODES = [("free", "FREE PLAY", "every jutsu, no rules"),
@@ -153,11 +162,30 @@ def play(cap, signs, mode):
     segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
     plate = BackgroundPlate()   # empty scene for invisibility, learned from the frames
     frame_no = 0
-    face_mesh = None            # built on first Fireball
+    face_mesh = None            # built on first Fireball or hand raised to the face
     particles = ParticleSystem()
     game = Game(COMBOS, time.monotonic()) if mode == "game" else None
     players = battle = duel = None   # built on the first frame (need the frame size)
     last_tick = time.monotonic()
+
+    def cast(p, combo, arena, at):
+        """Starts combo's effect for p unless arena (battle/duel) says it can't be used yet.
+        at: where the particle burst goes. Returns True if it was cast."""
+        if arena and not arena.on_combo(combo["effect"]):
+            if not arena.over():
+                p.message = f"{combo['name']} - cooling down {math.ceil(arena.cooldown_left(combo['effect']))}s"
+                p.message_until = time.monotonic() + 1.5
+            return False
+        p.active_effect = combo
+        p.effect_start = time.monotonic()
+        particles.burst(at, combo["colour"])
+        if combo["effect"] == "clone":   # smoke puff where each clone appears
+            for offset in CLONE_OFFSETS:
+                particles.burst((at[0] + offset * (p.x1 - p.x0), at[1]), (170, 170, 170), count=120, speed=350)
+        play_sound(*combo["sound"])
+        if game:
+            game.on_combo(combo, time.monotonic())
+        return True
 
     while True:
         success, frame = cap.read()
@@ -186,6 +214,7 @@ def play(cap, signs, mode):
             owned = [k for k, c in enumerate(hand_centres) if not duel_mode or (c[0] >= w / 2) == (i == 1)]
             centres = [hand_centres[k] for k in owned]
             mine = [hand_points[k] for k in owned]
+            p.centres = centres
 
             if centres:
                 # Palm = mean of wrist and knuckles; two hands -> between them (Rasengan)
@@ -219,23 +248,18 @@ def play(cap, signs, mode):
                     cv2.putText(frame, f"Seq: {' > '.join(sequence)}", (tx, 130),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.65 * ui, (200, 200, 0), 2)
 
-                    if combo and combo is not p.active_effect and arena and not arena.on_combo(combo["effect"]):
+                    if combo and combo is not p.active_effect and combo["effect"] == "summon":
+                        # The signs only arm it; the palm slap casts it (effect loop). Clearing keeps
+                        # last_sign, so the trailing Hitsuji can't go on into a Shadow Clone.
+                        p.sequencer.sequence.clear()
+                        if arena and arena.cooldown_left("summon") and not arena.over():
+                            p.message = f"{combo['name']} - cooling down {math.ceil(arena.cooldown_left('summon'))}s"
+                            p.message_until = time.monotonic() + 1.5
+                        else:
+                            p.armed, p.armed_until, p.slap = combo, time.monotonic() + SLAP_SECONDS, PalmSlap(h)
+                    elif combo and combo is not p.active_effect and not cast(p, combo, arena, p.palm):
                         # Cooling down: drop the combo but keep last_sign, so a held sign can't re-fire every frame
                         p.sequencer.sequence.clear()
-                        if not arena.over():
-                            p.message = f"{combo['name']} - cooling down {math.ceil(arena.cooldown_left(combo['effect']))}s"
-                            p.message_until = time.monotonic() + 1.5
-                    elif combo and combo is not p.active_effect:
-                        p.active_effect = combo
-                        p.effect_start  = time.monotonic()
-                        particles.burst(p.palm, combo["colour"])
-                        if combo["effect"] == "clone":   # smoke puff where each clone appears
-                            for offset in CLONE_OFFSETS:
-                                particles.burst((p.palm[0] + offset * (p.x1 - p.x0), p.palm[1]),
-                                                (170, 170, 170), count=120, speed=350)
-                        play_sound(*combo["sound"])
-                        if game:
-                            game.on_combo(combo, time.monotonic())
 
                 else:
                     cv2.putText(frame, "Holding...", (tx, 90),
@@ -255,6 +279,28 @@ def play(cap, signs, mode):
         dt = now - last_tick
         killed = []            # monster positions defeated this frame (battle mode)
         frame_no += 1
+        for i, p in enumerate(players):   # summon armed: wait for a palm slapped down
+            if p.armed is None:
+                continue
+            lowest = max(p.centres, key=lambda c: c[1], default=None)
+            if now > p.armed_until:
+                p.armed = None
+            elif p.slap.update(None if lowest is None else lowest[1], now):
+                size = 0.5 * (p.x1 - p.x0)    # creature stays in the caster's columns
+                x = float(np.clip(lowest[0], p.x0 + 0.6 * size, p.x1 - 0.6 * size))
+                combo, p.armed = p.armed, None
+                if cast(p, combo, battle or (duel.fighters[i] if duel else None), (x, h - 20)):
+                    p.summon_x = x
+                    particles.burst((x, h - 20), (200, 200, 200), count=150, speed=350)
+                    if battle:
+                        killed += battle.summon(x)
+                    if duel:
+                        duel.summon(i)
+            else:
+                text = "SLAP A PALM DOWN!"
+                text_w = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, ui, 2)[0][0]
+                cv2.putText(frame, text, ((p.x0 + p.x1 - text_w) // 2, h // 2), cv2.FONT_HERSHEY_DUPLEX, ui,
+                            (90, 200, 230), 2)
         kinds = [p.active_effect["effect"] if p.active_effect else None for p in players]
         mask = None            # selfie mask (1 = person): for clones, invisibility, background learning
         if "clone" in kinds or "invisible" in kinds or frame_no % 10 == 0:
@@ -262,15 +308,28 @@ def play(cap, signs, mode):
             plate.update(clean, mask)
 
         aiming = [p for p, kind in zip(players, kinds) if kind == "fireball" and now - p.effect_start < 0.5]
-        if aiming:   # aim while it gathers; once launched it keeps that course
+        # Face mesh is costly: only while a hand is up near the face, an eye cover is pending or the Sharingan shows
+        looking = [p for p, kind in zip(players, kinds) if kind == "sharingan" or p.cover.since is not None
+                   or any(c[1] < 0.6 * h for c in p.centres)]
+        if aiming or looking:   # fireball: aim while it gathers; once launched it keeps that course
             if face_mesh is None:
-                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=len(players))
+                face_mesh = mp.solutions.face_mesh.FaceMesh(max_num_faces=len(players), refine_landmarks=True)
             for face in face_mesh.process(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB)).multi_face_landmarks or []:
-                mouth, scale, direction = face_aim([(lm.x, lm.y) for lm in face.landmark])
+                points = [(lm.x, lm.y) for lm in face.landmark]
+                mouth, scale, direction = face_aim(points)
                 mouth = mouth * (w, h)
                 owner = players[int(mouth[0] >= w / 2) if duel_mode else 0]
                 if owner in aiming:
                     owner.mouth, owner.fire_scale, owner.fire_dir = mouth, scale, direction
+                owner.eyes = [iris(np.multiply(points, (w, h)), idx) for idx in IRISES]
+                owner.eyes_frame = frame_no
+            for i, p in enumerate(players):
+                if p not in looking:
+                    continue
+                # Eyes may be lost while a hand covers one: judge on the last ones seen
+                covered = p.eyes is not None and p.cover.covering([c for c, _ in p.eyes], p.centres)
+                if p.cover.update(covered, now) and p.active_effect is None:
+                    cast(p, SHARINGAN, battle or (duel.fighters[i] if duel else None), p.eyes[0][0])   # drawn from next frame
 
         for i, (p, kind) in enumerate(zip(players, kinds)):
             if kind is None:
@@ -301,6 +360,14 @@ def play(cap, signs, mode):
             elif kind == "substitution":
                 if not (battle or duel):   # free play: swap with a log on the spot; in a fight it waits for a hit
                     draw_log(frame, p.palm, p.palm_size * 5, t, EFFECT_SECONDS[kind])
+            elif kind == "sharingan":
+                if p.eyes_frame == frame_no:   # only on eyes found this frame, never stale ones
+                    # A real iris is ~5 px (2 px in a duel): size it from the eye gap so the tomoe show
+                    gap = np.linalg.norm(p.eyes[0][0] - p.eyes[1][0])
+                    for centre, radius in p.eyes:
+                        draw_sharingan(frame, centre, max(radius, 0.18 * gap), t, EFFECT_SECONDS[kind])
+            elif kind == "summon":
+                draw_summon(frame, p.summon_x, h, 0.5 * (p.x1 - p.x0), t, EFFECT_SECONDS[kind])
             elif kind == "fireball":
                 origin = p.mouth if p.mouth is not None else p.palm
                 direction = p.fire_dir
@@ -347,7 +414,8 @@ def play(cap, signs, mode):
                 hud = [f"TIME UP - SCORE {game.score}", "Press R to play again"]
             else:
                 hud = [f"TARGET: {COMBOS[game.target]['name']}",
-                       f"Signs: {' > '.join(game.target)}",
+                       f"Signs: {' > '.join(game.target)}"
+                       + (" > SLAP" if COMBOS[game.target]["effect"] == "summon" else ""),
                        f"Score: {game.score}   Time: {game.time_left(now):.0f}s"]
                 draw_sign_strip(frame, game.target, 20, h - 160)   # pictures of the target's signs
             for i, line in enumerate(hud):

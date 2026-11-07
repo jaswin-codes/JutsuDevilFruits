@@ -11,9 +11,15 @@ COMBOS = {
     ("Ne", "Inu", "Tori"):                       {"name": "HIDING WITH CAMOUFLAGE",  "colour": (200, 200, 200), "sound": (900, 200),  "effect": "invisible"},
     # Substitution: Tatsu is the one sign no other jutsu uses, so this can't fire halfway through another
     ("Tatsu", "Ne"):                             {"name": "SUBSTITUTION JUTSU",     "colour": (40, 90, 140),  "sound": (500, 250),  "effect": "substitution"},
+    # Summoning: canon order, then slap a palm down (main.py waits for the slap before it fires)
+    ("I", "Inu", "Tori", "Saru", "Hitsuji"):     {"name": "SUMMONING JUTSU",        "colour": (90, 200, 230), "sound": (120, 40),   "effect": "summon"},
     # Rasengan has no signs in canon: prayer hands (Gassho) start it
     ("Gassho",):                                 {"name": "RASENGAN",               "colour": (255, 150, 40), "sound": (400, 1200), "effect": "rasengan"},
 }
+
+# Sharingan has no signs: main.py casts it when you cover one eye with a hand and then lower it
+# (gestures.EyeCover). Not in COMBOS, so it is never a challenge target with no signs to show.
+SHARINGAN = {"name": "SHARINGAN", "colour": (30, 30, 220), "sound": (700, 1400), "effect": "sharingan"}
 
 MAX_COMBO_LENGTH = max(len(signs) for signs in COMBOS)
 
