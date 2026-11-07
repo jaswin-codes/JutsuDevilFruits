@@ -15,8 +15,8 @@
    ```
    python main.py
    ```
-4. A window opens with a start menu over your webcam feed: press **1** Naruto or
-   **2** One Piece. Naruto then asks for the mode: **1** free play, **2** challenge,
+4. A window opens with a start menu over your webcam feed: press **1** Naruto,
+   **2** One Piece or **3** Bleach. Naruto then asks for the mode: **1** free play, **2** challenge,
    **3** monster battle or **4** duel. **0** shows the hand-sign chart: a photo of every sign
    with its name. Any key goes back
 5. Press **M** to go back to the menu and **Q** to quit at any time. In a Naruto mode, **H**
@@ -275,6 +275,24 @@ Pick **3 Goro Goro**, or run `python main.py --goro`.
 
 **Tips:** keep both hands fully in view with all fingers spread for El Thor; a closed finger
 breaks the hold.
+
+---
+
+## Bleach Mode
+
+Pick **3 Bleach** in the start menu, or run `python main.py --bleach`. You start without a sword
+and work your way up.
+
+| Move | How | What happens |
+|------|-----|--------------|
+| Draw your sword | Make a fist low in the frame (below the middle) and pull it up fast, about a hand's length in under half a second | A katana grows out of your fist with a blue glow. It sits along your knuckles, so turn your fist to aim the blade. Open your hand for 1.5 s and it's gone. |
+| Getsuga Tensho | Swing the sword fast (the tip has to travel about four hand lengths in a split second) | A crescent of blue light flies off the blade the way you swung. Not in the first half second after drawing. |
+| Bankai | With the sword out, grab that wrist with your other hand and hold for 1 s | The room goes dark, red flames rise off you, the blade turns black, and slashes become black and red. Lasts until you put the sword away. |
+| Hollow mask | Put an open hand flat on your forehead, then drag it down over your face to below your chin within about half a second | A white bone mask with red stripes, black eyes and yellow irises covers your face for 15 s. Slashes are bigger while it's on. |
+
+**Tips:** for the draw, start with your fist near your hip and pull up as if drawing from a
+sheath. A fist pointed straight at the camera keeps the blade's last angle, so turn it side-on to
+aim. Keep your face in view for the mask: the camera needs to see your face just before you swipe.
 
 ---
 

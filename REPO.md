@@ -21,13 +21,13 @@ front of your webcam and the effects are drawn over the live image.
 
 | Where | What | State |
 |---|---|---|
-| `origin/main` (7889d94) | Everything up to the One Piece gears and the sign chart (PR #9) | merged |
-| branch `claude/inspiring-goldberg-3322f6` | Devil-fruit menu, Mera Mera, Goro Goro, docs, this file | **local only, not pushed, no PR**. Cut from current main, 85 tests pass |
-| branch `claude/silly-stonebraker-fa85db` | Summoning Jutsu and Sharingan (5 commits) | **local only, not pushed**. Cut from the OLD main (ee632e0, before One Piece), so merging it will conflict in `main.py`, `README.md` and `JUTSU_GUIDE.md` |
-| main checkout | on `feat/one-piece` (already merged) | switch to `main` and pull |
+| `origin/main` | Everything up to the devil fruits (Mera Mera, Goro Goro): PRs #9 and #10 | merged |
+| PR #12 (`feat/devil-fruits` -> main) | Summoning Jutsu and Sharingan | **open, needs merging**. PR #11 merged into `feat/devil-fruits` after #10 had already gone in, so these commits never reached main |
+| branch `feat/bleach` | Bleach world: sword draw, Getsuga, Bankai, Hollow mask | **local only, not pushed**. Built on `feat/devil-fruits`; after #12 merges, `git rebase origin/main` drops its extra merge commit. 114 tests pass |
+| main checkout | on `main` | up to date as of 2026-11-06 |
 | `C:\Users\jaswi\Downloads\jutsu_invisibility_test` | old worktree of `feat/invisibility` (merged) | safe to remove |
 
-Nothing in Mera Mera, Goro Goro, Summoning or Sharingan has been tried on a real webcam yet.
+Nothing in Mera Mera, Goro Goro, Summoning, Sharingan or Bleach has been tried on a real webcam yet.
 The One Piece gears haven't been tried on one either.
 
 ## 3. Timeline
@@ -50,12 +50,12 @@ The One Piece gears haven't been tried on one either.
   - One Piece world with Luffy: Pistol, rubber face pull, Gatling, Gear Second, Gear Fourth.
   - Sign chart with photos (0 in the menu, H mid-game, pauses the clocks).
   - App renamed **JutsuDevilFruits** (PR #9).
-  - Then, on the unmerged branches: Summoning and Sharingan; the devil-fruit picker with Mera
-    Mera and Goro Goro.
+  - Summoning and Sharingan; the devil-fruit picker with Mera Mera and Goro Goro (PRs #10 to #12).
+- **2026-11-07:** Bleach world: draw a sword from a fist, Getsuga Tensho, Bankai, Hollow mask.
 
 ## 4. Modes and controls
 
-Start menu: **1 Naruto, 2 One Piece**. M goes back a menu and Q quits everywhere.
+Start menu: **1 Naruto, 2 One Piece, 3 Bleach**. M goes back a menu and Q quits everywhere.
 `--camera N` picks another webcam.
 
 **Naruto** menu: 1 Free play (`--free`), 2 Challenge (`--game`), 3 Monster battle (`--battle`),
@@ -66,7 +66,7 @@ Start menu: **1 Naruto, 2 One Piece**. M goes back a menu and Q quits everywhere
 - **Duel:** two players, left and right halves of the screen. HP, cooldowns, blocks, best of
   3 with a countdown, R rematch.
 
-**One Piece** menu (once the devil-fruit branch merges): 1 Gomu Gomu (`--one-piece`),
+**One Piece** menu: 1 Gomu Gomu (`--one-piece`),
 2 Mera Mera (`--mera`), 3 Goro Goro (`--goro`). Each fruit is its own mode.
 - **Gomu Gomu:**
   - Fist = Pistol; pump the fist = Gatling.
@@ -77,6 +77,12 @@ Start menu: **1 Naruto, 2 One Piece**. M goes back a menu and Q quits everywhere
   0.25 s) = HIKEN fire blast.
 - **Goro Goro:** one finger up = VARI lightning. Both open hands held up for 0.3 s = EL THOR,
   a bolt from the top of the frame.
+
+**Bleach** (`--bleach`), one mode where you power up:
+- Fist low, pulled up fast (1.5 palm sizes in 0.4 s) = draw a katana along the knuckle row.
+- Swing (tip travels 4 palm sizes in 0.15 s) = Getsuga Tensho crescent. Locked for 0.5 s after drawing.
+- Other hand's palm on the sword wrist for 1 s = Bankai (room dims, red flames, black blade).
+- Open palm on the forehead dragged below the chin within 0.6 s = Hollow mask for 15 s.
 
 ## 5. Hand signs and jutsu
 
@@ -92,8 +98,8 @@ Photos are in `assets/signs` (MIT, see `SOURCE.md`).
 | Rasengan | Gassho | Sphere between the palms; spread your hands to grow it | charged melee, 10 s |
 | Hiding with Camouflage | Ne > Inu > Tori (our pick) | Invisibility | escape, 15 s |
 | Substitution | Tatsu > Ne (our pick) | The next hit lands on a log | dodge, 8 s |
-| Summoning *(unmerged)* | I > Inu > Tori > Saru > Hitsuji, then slap a palm down within 4 s | A boulder beast rises | area, 20 s |
-| Sharingan *(unmerged)* | Cover one eye, then lower the hand | Red eyes with spinning tomoe | slows monsters / opponent, 15 s |
+| Summoning *(PR #12)* | I > Inu > Tori > Saru > Hitsuji, then slap a palm down within 4 s | A boulder beast rises | area, 20 s |
+| Sharingan *(PR #12)* | Cover one eye, then lower the hand | Red eyes with spinning tomoe | slows monsters / opponent, 15 s |
 
 Add a combo with one line in `combos.py`.
 
@@ -113,6 +119,7 @@ Add a combo with one line in `combos.py`.
 - **One Piece:**
   - `one_piece.py`: Gomu Gomu, plus the shared `gesture()` / `fingers_out()`.
   - `mera.py`, `goro.py`: one module per fruit.
+- **Bleach:** `bleach.py` (the `Shinigami` logic, pure draw functions, its loop).
 - **Tests:** `test_*.py`, no webcam needed. `test_menu.py` drives `main()` with a fake camera,
   keys, clock and hand detector.
 
@@ -127,6 +134,8 @@ Add a combo with one line in `combos.py`.
 - **Stack:** Python 3.11 and mediapipe 0.10.21 (no 3.13 support). Never add `opencv-python`:
   mediapipe brings `opencv-contrib-python`.
 - **Expand beyond Naruto.** That led to the world menu and then the rename to JutsuDevilFruits.
+- **Bleach is a world of its own with one mode** where you power up (sword, then Bankai and the
+  mask), unlike the fruits, which are separate modes. Its effects are drawn in code too.
 - **Each devil fruit is its own mode,** not more gestures on Luffy. Fist, V and four fingers are
   already taken there.
 - **Effects are drawn in code only:** text names, no copyrighted images. Sign photos are the
@@ -164,20 +173,16 @@ Add a combo with one line in `combos.py`.
 
 ## 10. Next steps, in order
 
-1. **Main checkout:** `git checkout main` and `git pull`.
-2. **Devil fruits:** push `claude/inspiring-goldberg-3322f6` (or rename it to
-   `feat/devil-fruits`), open a PR and merge.
-3. **Summoning and Sharingan:** rebase `claude/silly-stonebraker-fa85db` onto the new main and
-   resolve the conflicts. `main.py` must keep both the world/fruit menus and the summon slap
-   and Sharingan code. In the docs, keep both the One Piece sections and the new jutsu sections.
-   Run the tests, then push and open a PR.
-4. **Webcam test session:** try every move on a real camera and tune the constants at the top
+1. **Merge PR #12** (Summoning and Sharingan into main).
+2. **Bleach:** `git rebase origin/main` on `feat/bleach`, run the tests, push, open a PR.
+3. **Webcam test session:** try every move on a real camera and tune the constants at the top
    of each module:
    - Mera: `PUNCH_GROWTH`, `PUNCH_WINDOW`
    - Goro: `RAISE_HOLD`, `POINT_UP`
    - Gomu: `PUMP_DIST`, `THUMB_IN`, `GEAR4_PUFF`
    - Summoning: the slap speed
-5. **Cleanup:** remove the `jutsu_invisibility_test` worktree and the merged local branches.
+   - Bleach: `DRAW_RISE`, `SWING_DIST`, `GRIP`, `SWIPE_TIME`
+4. **Cleanup:** remove the `jutsu_invisibility_test` worktree and the merged local branches.
 
 ## 11. Ideas for later
 
@@ -186,5 +191,6 @@ Add a combo with one line in `combos.py`.
 - **More fruits:** Hie Hie (ice), Bara Bara (split hands), Gura Gura (screen shake).
 - **Naruto:** more jutsu (Rasenshuriken, Amaterasu with the Sharingan, Water Dragon).
 - **Records:** high scores saved to a file, and a recording/screenshot key for sharing clips.
-- **Mixed duel:** a Naruto player against a One Piece player.
+- **Mixed duel:** a Naruto player against a One Piece or Bleach player.
+- **Bleach in battles:** Bleach in battle and duel mode (Getsuga as the ranged attack).
 - **Packaging:** an exe with PyInstaller, so friends can play without Python.
