@@ -21,10 +21,9 @@ front of your webcam and the effects are drawn over the live image.
 
 | Where | What | State |
 |---|---|---|
-| `origin/main` | Everything up to the devil fruits (Mera Mera, Goro Goro): PRs #9 and #10 | merged |
-| PR #12 (`feat/devil-fruits` -> main) | Summoning Jutsu and Sharingan | **open, needs merging**. PR #11 merged into `feat/devil-fruits` after #10 had already gone in, so these commits never reached main |
-| branch `feat/bleach` | Bleach world: sword draw, Getsuga, Bankai, Hollow mask | **local only, not pushed**. Built on `feat/devil-fruits`; after #12 merges, `git rebase origin/main` drops its extra merge commit. 114 tests pass |
-| main checkout | on `main` | up to date as of 2026-11-06 |
+| `origin/main` (cd6da38) | Everything up to the devil fruits, Summoning and Sharingan (PRs #9 to #12; #11 reached main through #12) | merged |
+| branch `feat/bleach` | Bleach world: sword draw, Getsuga, Bankai, Hollow mask | **local only, not pushed**. Rebased onto current main, 115 tests pass |
+| main checkout | on `main` | up to date as of 2026-11-07 |
 | `C:\Users\jaswi\Downloads\jutsu_invisibility_test` | old worktree of `feat/invisibility` (merged) | safe to remove |
 
 Nothing in Mera Mera, Goro Goro, Summoning, Sharingan or Bleach has been tried on a real webcam yet.
@@ -98,8 +97,8 @@ Photos are in `assets/signs` (MIT, see `SOURCE.md`).
 | Rasengan | Gassho | Sphere between the palms; spread your hands to grow it | charged melee, 10 s |
 | Hiding with Camouflage | Ne > Inu > Tori (our pick) | Invisibility | escape, 15 s |
 | Substitution | Tatsu > Ne (our pick) | The next hit lands on a log | dodge, 8 s |
-| Summoning *(PR #12)* | I > Inu > Tori > Saru > Hitsuji, then slap a palm down within 4 s | A boulder beast rises | area, 20 s |
-| Sharingan *(PR #12)* | Cover one eye, then lower the hand | Red eyes with spinning tomoe | slows monsters / opponent, 15 s |
+| Summoning | I > Inu > Tori > Saru > Hitsuji, then slap a palm down within 4 s | A boulder beast rises | area, 20 s |
+| Sharingan | Cover one eye, then lower the hand | Red eyes with spinning tomoe | slows monsters / opponent, 15 s |
 
 Add a combo with one line in `combos.py`.
 
@@ -173,16 +172,15 @@ Add a combo with one line in `combos.py`.
 
 ## 10. Next steps, in order
 
-1. **Merge PR #12** (Summoning and Sharingan into main).
-2. **Bleach:** `git rebase origin/main` on `feat/bleach`, run the tests, push, open a PR.
-3. **Webcam test session:** try every move on a real camera and tune the constants at the top
+1. **Bleach:** push `feat/bleach`, open a PR and merge.
+2. **Webcam test session:** try every move on a real camera and tune the constants at the top
    of each module:
    - Mera: `PUNCH_GROWTH`, `PUNCH_WINDOW`
    - Goro: `RAISE_HOLD`, `POINT_UP`
    - Gomu: `PUMP_DIST`, `THUMB_IN`, `GEAR4_PUFF`
    - Summoning: the slap speed
    - Bleach: `DRAW_RISE`, `SWING_DIST`, `GRIP`, `SWIPE_TIME`
-4. **Cleanup:** remove the `jutsu_invisibility_test` worktree and the merged local branches.
+3. **Cleanup:** remove the `jutsu_invisibility_test` worktree and the merged local branches.
 
 ## 11. Ideas for later
 
