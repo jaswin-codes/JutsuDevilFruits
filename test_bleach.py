@@ -159,3 +159,33 @@ def test_hollow_mask_covers_the_face_only():
     assert frame[160, 320].min() > 150           # bone white on the forehead
     assert frame[200, 285].max() < 20 and frame[200, 289][2] > 200 > frame[200, 289][0]   # black pupil, yellow iris
     assert (frame[20, 20] == 90).all() and (frame[230, 450] == 90).all()          # outside the face untouched
+
+
+def test_a_swing_through_dropped_frames_at_a_low_frame_rate_still_slashes():
+    soul = drawn()
+    frames = [[moved(fist(), dy=-100)], [], [moved(fist(), dx=200, dy=-100)]]   # 10 fps, hand lost mid-swing
+    assert flat(run(soul, frames, dt=0.1)) == ["getsuga"]
+
+
+def test_slashes_are_spaced_out_by_the_cooldown():
+    soul = drawn()
+    events = flat(run(soul, [[moved(fist(), dx=200 * k, dy=-100)] for k in range(1, 3)]))   # one long fast swing
+    assert events == ["getsuga"]
+
+
+def test_a_turned_fist_reading_as_loose_keeps_the_sword():
+    soul = drawn()
+    loose = moved(fist(), dy=-100)
+    loose[8], loose[12] = (loose[8][0], loose[8][1] - 200), (loose[12][0], loose[12][1] - 200)    # two fingers read out
+    assert not flat(run(soul, [[loose]] * 40)) and soul.sword_at is not None
+
+
+def test_the_sword_finds_the_fist_again_far_from_where_tracking_lost_it():
+    soul = drawn()
+    assert "sheathe" not in flat(run(soul, [[]] * 6 + [[moved(fist(), dx=450, dy=-100)]] * 40))
+    assert soul.fist[0] > 500 and soul.sword_at is not None
+
+
+def test_an_open_hand_lets_go_of_the_sword():
+    soul = drawn()
+    assert flat(run(soul, [[moved(OPEN, dy=-100)]] * 40)) == ["sheathe"]

@@ -40,7 +40,7 @@ def run_main(monkeypatch):
             frames = iter((hands or {}).get(name, []))
 
             class FakeDetector:
-                def __init__(self, max_hands=1):
+                def __init__(self, max_hands=1, **_):
                     used.append(name)
 
                 def find_hands(self, frame, draw=True):

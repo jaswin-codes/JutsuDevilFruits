@@ -15,7 +15,7 @@ from hand_detector import HandDetector
 from mera import fist_centre
 from one_piece import MAX_DT, fingers_out, gesture
 
-# shortcut: thresholds are guesses, not yet tuned on a webcam
+# Sword and swing thresholds tuned on a webcam (a swing blurs the hand: tracking drops frames at ~10-15 fps)
 DRAW_LOW = 0.55       # draw: the fist starts in the lower part of the frame (fraction of its height)...
 DRAW_RISE = 1.5       # ...and rises this many palm sizes...
 DRAW_WINDOW = 0.4     # ...within this many seconds
@@ -23,14 +23,18 @@ FORM_TIME = 0.3       # the blade grows out of the fist over this long
 SWING_LOCK = 0.5      # no Getsuga this soon after drawing (the draw itself is a fast move)
 BLADE = 4.5           # blade length in palm sizes (wrist to middle knuckle: doesn't shrink as the fist turns)
 EDGE_ON = 0.35        # knuckle row shorter than this many palm sizes: the fist points at the camera, keep the angle
-ANGLE_SMOOTH = 0.5    # blade angle: weight of the new reading each frame (the blade's length magnifies jitter)
-SWING_DIST = 4.0      # Getsuga: the blade tip travels this many palm sizes...
-SWING_WINDOW = 0.15   # ...within this many seconds
+ANGLE_SMOOTH = 0.35   # blade angle: weight of the new reading each frame (the blade's length magnifies jitter)
+SWING_DIST = 3.0      # Getsuga: the blade tip travels this many palm sizes...
+SWING_PALM = 90.0     # ...counting a palm as at most this many px (close to the camera the frame is too small otherwise)...
+SWING_WINDOW = 0.3    # ...within this many seconds
+SWING_COOLDOWN = 0.35 # seconds between slashes: one swing's follow-through is not a second swing
 GETSUGA_TIME = 1.0    # seconds a slash flies
 GETSUGA_SPEED = 900.0 # px/s
 SHEATHE = 1.5         # seconds without the sword fist and the sword is gone
 STICK = 4.0           # the sword stays in the fist nearest the last one, within this many palm sizes
                       # (a fast swing at a low frame rate moves the fist far in one frame)
+STICK_GROW = 5.0      # that reach grows by this fraction per second the fist is unseen (it kept moving)
+HOLD_OPEN = 3         # a hand holding the sword only lets go with this many fingers out (a turned fist reads as loose)
 GRIP = 1.3            # Bankai: the other hand's palm within this many palm sizes of the sword wrist...
 BANKAI_HOLD = 1.0     # ...for this long
 GRIP_GRACE = 0.2      # overlapping hands drop out of tracking: a gap this short keeps the grip timer
@@ -70,7 +74,7 @@ class Shinigami:
         if self.sword_at is None:
             self._draw(hands, fists, palms, height, events)
         else:
-            self._hold(hands, fists, palms, events)
+            self._hold(hands, [i for i, lm in enumerate(hands) if sum(fingers_out(lm)) < HOLD_OPEN], palms, events)
         self._mask(hands, events)
         return events
 
@@ -110,7 +114,8 @@ class Shinigami:
             events.append("draw")
 
     def _hold(self, hands, fists, palms, events):
-        near = [i for i in fists if math.dist(fist_centre(hands[i]), self.fist) < STICK * palms[i]]
+        reach = STICK * (1 + STICK_GROW * (self.t - self.seen))
+        near = [i for i in fists if math.dist(fist_centre(hands[i]), self.fist) < reach * palms[i]]
         if not near:
             if self.t - self.seen > SHEATHE:
                 self.sword_at, self.bankai, self.grip_since, self.grip_seen = None, False, None, None
@@ -123,7 +128,8 @@ class Shinigami:
         tip = self.tip()
         self.tips = [s for s in self.tips if s[0] >= self.t - SWING_WINDOW] + [(self.t, tip)]
         swing = tip - self.tips[0][1]
-        if self.t - self.sword_at > SWING_LOCK and np.hypot(*swing) > SWING_DIST * self.palm:
+        rested = not self.slashes or self.t - self.slashes[-1][0] > SWING_COOLDOWN
+        if self.t - self.sword_at > SWING_LOCK and rested and np.hypot(*swing) > SWING_DIST * min(self.palm, SWING_PALM):
             size = self.palm * (2.0 if self.bankai else 1.6) * (1.5 if self.masked() else 1.0)
             self.slashes.append((self.t, tip, swing / np.hypot(*swing), size, self.bankai))
             self.tips = [(self.t, tip)]   # one swing, one slash
@@ -306,7 +312,7 @@ EVENTS = {   # event -> (sound sweep, banner text or None, banner colour)
 
 def play(cap):
     """Bleach mode loop until Q ("quit") or M ("menu")."""
-    detector = HandDetector(max_hands=2)
+    detector = HandDetector(max_hands=2, detection_confidence=0.6, tracking_confidence=0.5)   # keep fast hands
     soul, particles, last = Shinigami(), ParticleSystem(), time.monotonic()
     segmenter = face_mesh = geometry = None   # built only when needed (Bankai / a hand near the face)
     shown, shown_until = None, 0.0
