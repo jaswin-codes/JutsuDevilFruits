@@ -1,6 +1,6 @@
 import numpy as np
 from battle import Battle, Monster
-from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga, draw_hollow, hunt,
+from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga, draw_hollow, draw_petals, hunt, Petals,
                     draw_hollow_mask, draw_sword)
 from test_one_piece import H, OPEN, W, fist
 
@@ -228,3 +228,47 @@ def test_hollow_draws_a_bone_mask_where_it_stands():
     frame = blank()
     draw_hollow(frame, Monster(300, 300, -1, 100, 0.0), 40, 0.0)
     assert frame[280, 300].min() > 200 and (frame[20, 20] == 90).all()
+
+
+def bankai():
+    soul = drawn()
+    soul.bankai = True
+    return soul
+
+
+HELD_OPEN = moved(OPEN, dy=-100)
+
+
+def test_opening_the_sword_hand_in_bankai_scatters_and_a_fist_recalls():
+    soul = bankai()
+    assert flat(run(soul, [[HELD_OPEN]] * 8)) == ["scatter"] and soul.scattered
+    pointer = moved(OPEN, dx=300)
+    run(soul, [[HELD_OPEN, pointer]])
+    assert np.allclose(soul.swarm, pointer[8])          # the petals go where the other hand points
+    assert flat(run(soul, [[moved(fist(), dy=-100)]])) == ["recall"] and not soul.scattered and soul.bankai
+
+
+def test_a_flicker_of_open_hand_does_not_scatter():
+    soul = bankai()
+    frames = ([[HELD_OPEN]] * 3 + [[moved(fist(), dy=-100)]]) * 3
+    assert not flat(run(soul, frames)) and not soul.scattered
+
+
+def test_losing_the_hand_while_scattered_sheathes():
+    soul = bankai()
+    run(soul, [[HELD_OPEN]] * 8)
+    assert flat(run(soul, [[]] * 40)) == ["sheathe"] and not soul.scattered and not soul.bankai
+
+
+def test_petals_swarm_to_the_target_and_cut_hollows_there():
+    petals = Petals((100, 100), (100, 400), np.random.default_rng(1))
+    for _ in range(90):
+        petals.update(0.05, (500, 300))
+    assert np.hypot(*(petals.centre() - (500, 300))) < 60
+    soul, battle = drawn(), Battle(W, H)
+    m = hollow_at(battle, 500, 300)
+    hunt(battle, soul, 0.1, petals)
+    assert m.hp < 100
+    frame = blank()
+    draw_petals(frame, petals)
+    assert (frame != 90).any()
