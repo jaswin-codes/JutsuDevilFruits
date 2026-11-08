@@ -1,6 +1,6 @@
 import numpy as np
 from battle import Battle, Monster
-from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga, draw_hollow, draw_petals, hunt, Petals,
+from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_afterimages, draw_getsuga, draw_hollow, draw_petals, hunt, merge_ghosts, Petals, body_x,
                     draw_hollow_mask, draw_sword)
 from test_one_piece import H, OPEN, W, fist
 
@@ -272,3 +272,34 @@ def test_petals_swarm_to_the_target_and_cut_hollows_there():
     frame = blank()
     draw_petals(frame, petals)
     assert (frame != 90).any()
+
+
+def walk(soul, xs, dt=0.05):
+    return [e for x in xs for e in soul.update([], dt, H, body=x)]
+
+
+def test_a_quick_sideways_lunge_is_one_flash_step():
+    assert walk(Shinigami(), [0.3, 0.38, 0.5, 0.6, 0.7]) == ["flash"]
+
+
+def test_slow_moves_and_people_reappearing_are_not_flash_steps():
+    assert not walk(Shinigami(), [0.3 + 0.01 * k for k in range(40)])
+    assert not walk(Shinigami(), [0.3, None, 0.8])
+
+
+def test_body_x_finds_the_person_or_nobody():
+    mask = np.zeros((H, W), np.float32)
+    assert body_x(mask) is None
+    mask[100:400, 100:200] = 1
+    assert abs(body_x(mask) - 150 / W) < 0.01
+
+
+def test_afterimages_stay_behind_the_real_person():
+    frame = blank()
+    old, now = np.zeros((H, W), np.float32), np.zeros((H, W), np.float32)
+    old[100:300, 100:200] = 1
+    now[100:300, 150:250] = 1
+    draw_afterimages(frame, *merge_ghosts([(np.full((H, W, 3), 200, np.uint8), old)]), now, 1.0)
+    assert (frame[200, 120] != 90).any()            # the ghost is left where you were
+    assert (frame[200, 180] == 90).all()            # you, in front of it
+    assert (frame[20, 20] == 90).all()

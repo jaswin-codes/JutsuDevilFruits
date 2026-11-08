@@ -4,6 +4,7 @@
 #   Grip the sword wrist with your other hand for 1 s: Bankai (dark room, red aura, black blade).
 #   Drag an open hand down over your face: a Hollow mask (bigger slashes while it lasts).
 # Shinigami (the logic) and the draw functions are pure (no camera) and tested; play() wires them up.
+import collections
 import math
 import time
 import cv2
@@ -42,6 +43,12 @@ GRIP_GRACE = 0.2      # overlapping hands drop out of tracking: a gap this short
 SWIPE_TIME = 0.6      # mask: an open hand goes from the forehead to below the chin within this long
 FACE_AGE = 1.0        # a face seen this recently still counts (the swiping hand hides the face)
 MASK_TIME = 15.0      # seconds the Hollow mask lasts
+STEP_DIST = 0.15      # Flash Step: the body's centre moves this fraction of the frame width...
+STEP_WINDOW = 0.25    # ...within this many seconds
+STEP_COOLDOWN = 1.0   # seconds between Flash Steps
+FLASH_TIME = 0.5      # seconds the afterimages take to fade
+GHOST_FRAMES = 6      # recent frames kept to leave behind as afterimages
+DODGE = 0.6           # Hollow hunt: the next hit within this long of a Flash Step misses you
 SCATTER_HOLD = 0.25   # Bankai: the sword hand stays open this long and the blade scatters (a flicker doesn't)
 PETALS = 350          # Senbonzakura: petals in the swarm
 SWARM_RADIUS = 70.0   # px: Hollows this close to the swarm's centre are cut
@@ -65,12 +72,13 @@ class Shinigami:
         self.open_since, self.swarm = None, None   # when the sword hand opened; where the petals are sent
         self.slashes = []           # (t fired, origin, unit direction, size, bankai)
         self.face, self.face_at = None, -math.inf   # last face box (top, bottom, left, right)
+        self.bodies, self.flash_at = [], -math.inf   # (t, body centre) over the last STEP_WINDOW s; last Flash Step
         self.swipe = None           # time an open hand was last on the forehead
         self.mask_at = None
 
-    def update(self, hands, dt, height, face=None):
-        """hands: 21-landmark pixel lists; face: (top, bottom, left, right) if seen this frame.
-        Returns this frame's events: 'draw', 'getsuga', 'bankai', 'mask', 'sheathe'."""
+    def update(self, hands, dt, height, face=None, body=None):
+        """hands: 21-landmark pixel lists; face: (top, bottom, left, right) if seen this frame; body: centre of the person as a fraction of the width.
+        Returns this frame's events: 'draw', 'getsuga', 'bankai', 'mask', 'sheathe', 'scatter', 'recall', 'flash'."""
         self.t += min(dt, MAX_DT)
         events = []
         if face is not None:
@@ -83,6 +91,7 @@ class Shinigami:
         else:
             self._hold(hands, [i for i, lm in enumerate(hands) if sum(fingers_out(lm)) < HOLD_OPEN], palms, events)
         self._mask(hands, events)
+        self._step(body, events)
         return events
 
     def masked(self):
@@ -119,6 +128,15 @@ class Shinigami:
             self._aim(hands[i])
             self.rises, self.tips = [], []
             events.append("draw")
+
+    def _step(self, body, events):
+        if body is None:              # nobody in frame: don't compare across the gap
+            self.bodies = []
+            return
+        self.bodies = [s for s in self.bodies if s[0] >= self.t - STEP_WINDOW] + [(self.t, body)]
+        if abs(body - self.bodies[0][1]) > STEP_DIST and self.t - self.flash_at > STEP_COOLDOWN:
+            self.flash_at, self.bodies = self.t, []
+            events.append("flash")
 
     def _sheathe(self, events):
         self.sword_at, self.bankai, self.scattered, self.grip_since, self.grip_seen = None, False, False, None, None
@@ -366,6 +384,33 @@ def draw_hollow_mask(frame, oval, irises, mouth, fade=1.0):
     roi[:] = (roi * (1 - a) + layer * a).astype(np.uint8)
 
 
+def body_x(mask):
+    """Centre of the person in a segmentation mask as a fraction of the width; None if hardly anyone is there."""
+    column = (mask > 0.5).sum(axis=0)
+    if column.sum() < 0.03 * mask.size:
+        return None
+    return float((column * np.arange(len(column))).sum() / column.sum() / len(column))
+
+
+def merge_ghosts(ghosts):
+    """Flash Step: the frames just before the lunge as one blue layer (colour, opacity), newest on top and strongest.
+    Built once per step: blending every ghost on every frame took 100 ms."""
+    layer = np.zeros_like(ghosts[0][0], np.float32)
+    weight = np.zeros(ghosts[0][1].shape, np.float32)
+    for k, (image, ghost) in enumerate(ghosts):
+        person = ghost > 0.5
+        layer[person] = 0.6 * image[person] + 0.4 * np.float32(BLUE)
+        weight[person] = 0.2 + 0.4 * (k + 1) / len(ghosts)
+    return layer, weight
+
+
+def draw_afterimages(frame, layer, weight, mask, fade):
+    """The merged afterimages over the room, the real person kept in front."""
+    out = frame.astype(np.float32)
+    out += (layer - out) * (weight * np.float32(fade))[:, :, None]
+    frame[:] = np.where((mask > 0.5)[:, :, None], frame, out.astype(np.uint8))
+
+
 def hunt(battle, soul, dt, petals=None):
     """The sword and its flying slashes against the Hollows. Returns the positions of those killed."""
     killed = []
@@ -409,6 +454,7 @@ EVENTS = {   # event -> (sound sweep, banner text or None, banner colour)
     "mask": ((160, 70), "HOLLOW MASK", (230, 230, 230)),
     "scatter": ((1300, 500), "SENBONZAKURA", PINK),
     "recall": ((500, 1300), None, None),
+    "flash": ((1800, 1000), "FLASH STEP", BLUE),
 }
 
 
@@ -416,7 +462,9 @@ def play(cap):
     """Bleach mode loop until Q ("quit") or M ("menu")."""
     detector = HandDetector(max_hands=2, detection_confidence=0.6, tracking_confidence=0.5)   # keep fast hands
     soul, particles, last = Shinigami(), ParticleSystem(), time.monotonic()
-    segmenter = face_mesh = geometry = None   # built only when needed (Bankai / a hand near the face)
+    segmenter = mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)   # ~5 ms: Flash Step, Bankai
+    face_mesh = geometry = None               # built only when a hand is near the face
+    history, ghosts, flashed = collections.deque(maxlen=GHOST_FRAMES), None, -math.inf
     shown, shown_until = None, 0.0
     battle = None                             # the Hollow hunt, while H has it on
     petals = None                             # Senbonzakura swarm, while the blade is scattered
@@ -440,7 +488,9 @@ def play(cap):
                 geometry = face_geometry([(p.x * w, p.y * h) for p in faces[0].landmark])
                 xs, ys = geometry[0][:, 0], geometry[0][:, 1]
                 face = (ys.min(), ys.max(), xs.min(), xs.max())
-        for event in soul.update(hands, dt, h, face):
+        mask = segmenter.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).segmentation_mask
+        history.append((frame.copy(), mask))
+        for event in soul.update(hands, dt, h, face, body_x(mask)):
             if event in EVENTS:
                 play_sound(*EVENTS[event][0])
                 if EVENTS[event][1]:
@@ -449,6 +499,10 @@ def play(cap):
                 particles.burst(soul.hilt, BLUE, count=120, speed=500.0, life=0.6)
             if event == "bankai":
                 particles.burst(soul.hilt, RED, count=300, speed=900.0, life=1.2)
+            if event == "flash":
+                ghosts, flashed = merge_ghosts(list(history)), soul.t
+                if battle:
+                    battle.sub_until = battle.t + DODGE
             if event == "scatter":
                 petals = Petals(soul.hilt, soul.tip())
             if event == "recall":
@@ -463,10 +517,10 @@ def play(cap):
             for spot in hunt(battle, soul, dt, petals):
                 particles.burst(spot, (240, 240, 240), count=80, speed=450.0, life=0.5)
 
+        if soul.t - flashed < FLASH_TIME:
+            draw_afterimages(frame, *ghosts, mask, 1 - (soul.t - flashed) / FLASH_TIME)
         if soul.bankai:
-            segmenter = segmenter or mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
-            draw_bankai_aura(frame, segmenter.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).segmentation_mask,
-                             soul.t)
+            draw_bankai_aura(frame, mask, soul.t)
         if soul.masked() and geometry is not None:
             age = soul.t - soul.mask_at
             draw_hollow_mask(frame, *geometry, fade=min(1.0, age / 0.3, (MASK_TIME - age) / 1.0))
@@ -494,7 +548,7 @@ def play(cap):
                 banner(frame, "THE HOLLOWS WON - R", RED)
         cv2.putText(frame, f"BLEACH  {state}", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 200, 120), 2)
         cv2.putText(frame, "Fist low, pull up: sword | Swing: Getsuga | Grip sword wrist: Bankai, then open hand: petals | "
-                    "Open hand down face: mask | H: Hollows | M, Q", (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                    "Open hand down face: mask | Lunge sideways: Flash Step | H: Hollows | M, Q", (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
                     (230, 230, 230), 1)
         cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
