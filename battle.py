@@ -153,6 +153,17 @@ class Battle:
         self.fireball_spent = True
         return [(target.x, target.y)] if self._damage(target, FIREBALL_DAMAGE) else []
 
+    def slash(self, centre, radius, damage, hit):
+        """A flying slash overlapping monsters damages each once (hit: the set of those it already cut).
+        Returns killed positions."""
+        killed = []
+        for m in [] if self.over() else list(self.monsters):
+            if m not in hit and (m.x - centre[0]) ** 2 + (m.y - centre[1]) ** 2 < (radius + self.radius) ** 2:
+                hit.add(m)
+                if self._damage(m, damage):
+                    killed.append((m.x, m.y))
+        return killed
+
     def summon(self, x):
         """The summoned creature lands at x (where the palm slapped down): damages every monster
         within SUMMON_REACH of it. Returns killed positions."""

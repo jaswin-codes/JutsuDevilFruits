@@ -10,6 +10,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 from anime_effects import _add_light
+from battle import Battle
 from effects import ParticleSystem, play_sound
 from hand_detector import HandDetector
 from mera import fist_centre
@@ -41,6 +42,7 @@ GRIP_GRACE = 0.2      # overlapping hands drop out of tracking: a gap this short
 SWIPE_TIME = 0.6      # mask: an open hand goes from the forehead to below the chin within this long
 FACE_AGE = 1.0        # a face seen this recently still counts (the swiping hand hides the face)
 MASK_TIME = 15.0      # seconds the Hollow mask lasts
+GETSUGA_DAMAGE = 100.0  # Hollow hunt: one sealed slash kills a wave-1 Hollow; Bankai doubles it
 
 STEEL, BLUE, RED = (205, 200, 195), (255, 215, 130), (40, 30, 235)   # BGR
 OVAL = sorted({i for pair in mp.solutions.face_mesh.FACEMESH_FACE_OVAL for i in pair})
@@ -131,7 +133,7 @@ class Shinigami:
         rested = not self.slashes or self.t - self.slashes[-1][0] > SWING_COOLDOWN
         if self.t - self.sword_at > SWING_LOCK and rested and np.hypot(*swing) > SWING_DIST * min(self.palm, SWING_PALM):
             size = self.palm * (2.0 if self.bankai else 1.6) * (1.5 if self.masked() else 1.0)
-            self.slashes.append((self.t, tip, swing / np.hypot(*swing), size, self.bankai))
+            self.slashes.append((self.t, tip, swing / np.hypot(*swing), size, self.bankai, set()))   # set: Hollows cut
             self.tips = [(self.t, tip)]   # one swing, one slash
             events.append("getsuga")
         gripping = any(math.dist(fist_centre(hands[j]), hands[i][0]) < GRIP * self.palm
@@ -206,14 +208,18 @@ def crescent(centre, direction, radius):
     return np.float32(outer + inner)
 
 
+def getsuga_at(origin, direction, age, size, duration=GETSUGA_TIME):
+    """Where a slash is after flying for age seconds: its centre and radius."""
+    return np.float32(origin) + _unit(direction) * GETSUGA_SPEED * age, size * (1 + 1.5 * age / duration)
+
+
 def draw_getsuga(frame, origin, direction, age, size, bankai=False, duration=GETSUGA_TIME):
     """Getsuga Tensho: a crescent of energy flying off along direction, growing and fading.
     Sealed it is blue-white light; in Bankai a black core with a red edge."""
     if not 0 <= age < duration:
         return
     fade = 1 - age / duration
-    radius = size * (1 + 1.5 * age / duration)
-    centre = np.float32(origin) + _unit(direction) * GETSUGA_SPEED * age
+    centre, radius = getsuga_at(origin, direction, age, size, duration)
     shape = crescent(centre, direction, radius)
     x, y, bw, bh = cv2.boundingRect(np.int32(shape))
     x0, y0, x1, y1 = max(x, 0), max(y, 0), min(x + bw, frame.shape[1]), min(y + bh, frame.shape[0])
@@ -296,6 +302,34 @@ def draw_hollow_mask(frame, oval, irises, mouth, fade=1.0):
     roi[:] = (roi * (1 - a) + layer * a).astype(np.uint8)
 
 
+def hunt(battle, soul, dt):
+    """The sword and its flying slashes against the Hollows. Returns the positions of those killed."""
+    killed = []
+    if soul.sword_at is not None:
+        killed += battle.melee(soul.tip(), 0.5 * soul.palm, dt)
+    for fired, origin, direction, size, bankai, hit in soul.slashes:
+        centre, radius = getsuga_at(origin, direction, soul.t - fired, size)
+        killed += battle.slash(centre, radius, GETSUGA_DAMAGE * (2 if bankai else 1), hit)
+    return killed
+
+
+def draw_hollow(frame, m, r, t):
+    """A Hollow: black body with a hole through the chest and a bone-white mask, bobbing as it walks."""
+    x, y = int(m.x), int(m.y + 0.08 * r * math.sin(t * 7 + m.x * 0.05))
+    r = int(r)
+    bone = (255, 255, 255) if t - m.hit_time < 0.12 else (225, 235, 240)
+    cv2.ellipse(frame, (x, y + r // 3), (r, int(1.1 * r)), 0, 0, 360, (35, 25, 30), -1, cv2.LINE_AA)
+    cv2.circle(frame, (x, y + r // 2), r // 3, (0, 0, 0), -1, cv2.LINE_AA)
+    cv2.circle(frame, (x, y + r // 2), r // 3, RED, 2, cv2.LINE_AA)
+    cv2.ellipse(frame, (x, y - r // 2), (int(0.7 * r), int(0.6 * r)), 0, 0, 360, bone, -1, cv2.LINE_AA)
+    for ex in (-1, 1):
+        cv2.ellipse(frame, (x + ex * r // 3, y - int(0.6 * r)), (r // 5, r // 8), 0, 0, 360, (0, 0, 0), -1, cv2.LINE_AA)
+    cv2.line(frame, (x - r // 3, y - r // 5), (x + r // 3, y - r // 5), (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.line(frame, (x, y - r), (x + r // 6, y - r // 2), RED, 2, cv2.LINE_AA)
+    cv2.rectangle(frame, (x - r, y - r - 12), (x + r, y - r - 6), (40, 40, 40), -1)
+    cv2.rectangle(frame, (x - r, y - r - 12), (x - r + int(2 * r * max(m.hp, 0) / m.max_hp), y - r - 6), RED, -1)
+
+
 def banner(frame, text, colour):
     w = frame.shape[1]
     size = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 1.4, 3)[0]
@@ -316,6 +350,7 @@ def play(cap):
     soul, particles, last = Shinigami(), ParticleSystem(), time.monotonic()
     segmenter = face_mesh = geometry = None   # built only when needed (Bankai / a hand near the face)
     shown, shown_until = None, 0.0
+    battle = None                             # the Hollow hunt, while H has it on
     while True:
         success, frame = cap.read()
         if not success:
@@ -345,6 +380,11 @@ def play(cap):
                 particles.burst(soul.hilt, BLUE, count=120, speed=500.0, life=0.6)
             if event == "bankai":
                 particles.burst(soul.hilt, RED, count=300, speed=900.0, life=1.2)
+        if battle:
+            if battle.update(dt):
+                play_sound(200, 80)
+            for spot in hunt(battle, soul, dt):
+                particles.burst(spot, (240, 240, 240), count=80, speed=450.0, life=0.5)
 
         if soul.bankai:
             segmenter = segmenter or mp.solutions.selfie_segmentation.SelfieSegmentation(model_selection=1)
@@ -353,9 +393,11 @@ def play(cap):
         if soul.masked() and geometry is not None:
             age = soul.t - soul.mask_at
             draw_hollow_mask(frame, *geometry, fade=min(1.0, age / 0.3, (MASK_TIME - age) / 1.0))
+        for m in battle.monsters if battle else []:
+            draw_hollow(frame, m, battle.radius, battle.t)
         if soul.sword_at is not None:
             draw_sword(frame, soul.hilt, soul.tip(), soul.bankai)
-        for fired, origin, direction, size, bankai in soul.slashes:
+        for fired, origin, direction, size, bankai, _ in soul.slashes:
             draw_getsuga(frame, origin, direction, soul.t - fired, size, bankai)
         particles.update(dt)
         particles.draw(frame)
@@ -364,9 +406,16 @@ def play(cap):
             banner(frame, *shown)
         state = ("BANKAI" if soul.bankai else "ZANPAKUTO" if soul.sword_at is not None else "NO SWORD") + \
                 (f" + HOLLOW {math.ceil(MASK_TIME - (soul.t - soul.mask_at))}" if soul.masked() else "")
+        if battle:
+            if battle.t - battle.hurt_time < 0.3:
+                cv2.rectangle(frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 12)
+            cv2.putText(frame, f"HP {battle.hp}  WAVE {battle.wave}  SCORE {battle.score}", (10, h - 70),
+                        cv2.FONT_HERSHEY_DUPLEX, 0.7, (240, 240, 240), 2)
+            if battle.over():
+                banner(frame, "THE HOLLOWS WON - R", RED)
         cv2.putText(frame, f"BLEACH  {state}", (10, h - 40), cv2.FONT_HERSHEY_DUPLEX, 0.7, (255, 200, 120), 2)
         cv2.putText(frame, "Fist low, pull up: sword | Swing: Getsuga | Grip sword wrist: Bankai | "
-                    "Open hand down face: mask | M, Q", (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                    "Open hand down face: mask | H: Hollows | M, Q", (10, h - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
                     (230, 230, 230), 1)
         cv2.imshow("JutsuDevilFruits", frame)
         key = cv2.waitKey(1) & 0xFF
@@ -374,3 +423,7 @@ def play(cap):
             return "quit"
         if key == ord('m'):
             return "menu"
+        if key == ord('h'):
+            battle = None if battle else Battle(w, h)
+        if key == ord('r') and battle and battle.over():
+            battle = Battle(w, h)

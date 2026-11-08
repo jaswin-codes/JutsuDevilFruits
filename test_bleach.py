@@ -1,5 +1,6 @@
 import numpy as np
-from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga,
+from battle import Battle, Monster
+from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga, draw_hollow, hunt,
                     draw_hollow_mask, draw_sword)
 from test_one_piece import H, OPEN, W, fist
 
@@ -189,3 +190,41 @@ def test_the_sword_finds_the_fist_again_far_from_where_tracking_lost_it():
 def test_an_open_hand_lets_go_of_the_sword():
     soul = drawn()
     assert flat(run(soul, [[moved(OPEN, dy=-100)]] * 40)) == ["sheathe"]
+
+
+def hollow_at(battle, x, y, hp=100):
+    battle.monsters.append(Monster(x, y, -1, hp, 0.0))
+    return battle.monsters[-1]
+
+
+def test_a_flying_slash_cuts_each_hollow_once():
+    battle, hit = Battle(W, H), set()
+    tough = hollow_at(battle, 400, 300, hp=250)
+    for _ in range(3):
+        assert battle.slash((400, 300), 50, 100, hit) == []
+    assert tough.hp == 150
+
+
+def test_getsuga_flies_into_a_hollow_and_kills_it():
+    soul, battle = drawn(), Battle(W, H)
+    run(soul, [[moved(fist(), dx=130 * k, dy=-100)] for k in range(1, 3)])
+    _, origin, direction, size, _, _ = soul.slashes[0]
+    far = (origin + direction * 450).tolist()
+    m = hollow_at(battle, *far)
+    soul.sword_at = None                                    # only the slash counts here
+    assert hunt(battle, soul, 0.0) == [] and m.hp == 100    # the slash has not got there yet
+    soul.t = soul.slashes[0][0] + 0.5
+    assert hunt(battle, soul, 0.0) == [tuple(far)] and not battle.monsters
+
+
+def test_the_blade_itself_cuts_a_hollow_it_touches():
+    soul, battle = drawn(), Battle(W, H)
+    m = hollow_at(battle, *soul.tip().tolist())
+    hunt(battle, soul, 0.1)
+    assert m.hp < 100
+
+
+def test_hollow_draws_a_bone_mask_where_it_stands():
+    frame = blank()
+    draw_hollow(frame, Monster(300, 300, -1, 100, 0.0), 40, 0.0)
+    assert frame[280, 300].min() > 200 and (frame[20, 20] == 90).all()
