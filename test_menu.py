@@ -89,3 +89,8 @@ def test_bleach_is_the_third_world_and_draws_a_sword(run_main):
     rise = [[[(x, y - 50 * k) for x, y in fist()]] for k in range(3)]   # a low fist pulled up fast
     sounds, used = run_main([], ["3"] + frames(5) + ["m", "q"], {"bleach": rise})
     assert used == ["bleach"] and (300, 1400) in sounds
+
+
+def test_h_starts_the_hollow_hunt_in_bleach(run_main):
+    _, used = run_main(["--bleach"], ["h"] + frames(5))
+    assert used == ["bleach"]

@@ -1,5 +1,6 @@
 import numpy as np
-from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_getsuga,
+from battle import Battle, Monster
+from bleach import (BANKAI_HOLD, GETSUGA_TIME, Shinigami, crescent, draw_bankai_aura, draw_afterimages, draw_getsuga, draw_hollow, draw_petals, hunt, merge_ghosts, Petals, body_x,
                     draw_hollow_mask, draw_sword)
 from test_one_piece import H, OPEN, W, fist
 
@@ -189,3 +190,116 @@ def test_the_sword_finds_the_fist_again_far_from_where_tracking_lost_it():
 def test_an_open_hand_lets_go_of_the_sword():
     soul = drawn()
     assert flat(run(soul, [[moved(OPEN, dy=-100)]] * 40)) == ["sheathe"]
+
+
+def hollow_at(battle, x, y, hp=100):
+    battle.monsters.append(Monster(x, y, -1, hp, 0.0))
+    return battle.monsters[-1]
+
+
+def test_a_flying_slash_cuts_each_hollow_once():
+    battle, hit = Battle(W, H), set()
+    tough = hollow_at(battle, 400, 300, hp=250)
+    for _ in range(3):
+        assert battle.slash((400, 300), 50, 100, hit) == []
+    assert tough.hp == 150
+
+
+def test_getsuga_flies_into_a_hollow_and_kills_it():
+    soul, battle = drawn(), Battle(W, H)
+    run(soul, [[moved(fist(), dx=130 * k, dy=-100)] for k in range(1, 3)])
+    _, origin, direction, size, _, _ = soul.slashes[0]
+    far = (origin + direction * 450).tolist()
+    m = hollow_at(battle, *far)
+    soul.sword_at = None                                    # only the slash counts here
+    assert hunt(battle, soul, 0.0) == [] and m.hp == 100    # the slash has not got there yet
+    soul.t = soul.slashes[0][0] + 0.5
+    assert hunt(battle, soul, 0.0) == [tuple(far)] and not battle.monsters
+
+
+def test_the_blade_itself_cuts_a_hollow_it_touches():
+    soul, battle = drawn(), Battle(W, H)
+    m = hollow_at(battle, *soul.tip().tolist())
+    hunt(battle, soul, 0.1)
+    assert m.hp < 100
+
+
+def test_hollow_draws_a_bone_mask_where_it_stands():
+    frame = blank()
+    draw_hollow(frame, Monster(300, 300, -1, 100, 0.0), 40, 0.0)
+    assert frame[280, 300].min() > 200 and (frame[20, 20] == 90).all()
+
+
+def bankai():
+    soul = drawn()
+    soul.bankai = True
+    return soul
+
+
+HELD_OPEN = moved(OPEN, dy=-100)
+
+
+def test_opening_the_sword_hand_in_bankai_scatters_and_a_fist_recalls():
+    soul = bankai()
+    assert flat(run(soul, [[HELD_OPEN]] * 8)) == ["scatter"] and soul.scattered
+    pointer = moved(OPEN, dx=300)
+    run(soul, [[HELD_OPEN, pointer]])
+    assert np.allclose(soul.swarm, pointer[8])          # the petals go where the other hand points
+    assert flat(run(soul, [[moved(fist(), dy=-100)]])) == ["recall"] and not soul.scattered and soul.bankai
+
+
+def test_a_flicker_of_open_hand_does_not_scatter():
+    soul = bankai()
+    frames = ([[HELD_OPEN]] * 3 + [[moved(fist(), dy=-100)]]) * 3
+    assert not flat(run(soul, frames)) and not soul.scattered
+
+
+def test_losing_the_hand_while_scattered_sheathes():
+    soul = bankai()
+    run(soul, [[HELD_OPEN]] * 8)
+    assert flat(run(soul, [[]] * 40)) == ["sheathe"] and not soul.scattered and not soul.bankai
+
+
+def test_petals_swarm_to_the_target_and_cut_hollows_there():
+    petals = Petals((100, 100), (100, 400), np.random.default_rng(1))
+    for _ in range(90):
+        petals.update(0.05, (500, 300))
+    assert np.hypot(*(petals.centre() - (500, 300))) < 60
+    soul, battle = drawn(), Battle(W, H)
+    m = hollow_at(battle, 500, 300)
+    hunt(battle, soul, 0.1, petals)
+    assert m.hp < 100
+    frame = blank()
+    draw_petals(frame, petals)
+    assert (frame != 90).any()
+
+
+def walk(soul, xs, dt=0.05):
+    return [e for x in xs for e in soul.update([], dt, H, body=x)]
+
+
+def test_a_quick_sideways_lunge_is_one_flash_step():
+    assert walk(Shinigami(), [0.3, 0.38, 0.5, 0.6, 0.7]) == ["flash"]
+
+
+def test_slow_moves_and_people_reappearing_are_not_flash_steps():
+    assert not walk(Shinigami(), [0.3 + 0.01 * k for k in range(40)])
+    assert not walk(Shinigami(), [0.3, None, 0.8])
+
+
+def test_body_x_finds_the_person_or_nobody():
+    mask = np.zeros((H, W), np.float32)
+    assert body_x(mask) is None
+    mask[100:400, 100:200] = 1
+    assert abs(body_x(mask) - 150 / W) < 0.01
+
+
+def test_afterimages_stay_behind_the_real_person():
+    frame = blank()
+    old, now = np.zeros((H, W), np.float32), np.zeros((H, W), np.float32)
+    old[100:300, 100:200] = 1
+    now[100:300, 150:250] = 1
+    draw_afterimages(frame, *merge_ghosts([(np.full((H, W, 3), 200, np.uint8), old)]), now, 1.0)
+    assert (frame[200, 120] != 90).any()            # the ghost is left where you were
+    assert (frame[200, 180] == 90).all()            # you, in front of it
+    assert (frame[20, 20] == 90).all()
