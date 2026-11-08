@@ -22,11 +22,11 @@ front of your webcam and the effects are drawn over the live image.
 | Where | What | State |
 |---|---|---|
 | `origin/main` (cd6da38) | Everything up to the devil fruits, Summoning and Sharingan (PRs #9 to #12; #11 reached main through #12) | merged |
-| branch `feat/bleach` | Bleach world: sword draw, Getsuga, Bankai, Hollow mask | **local only, not pushed**. Rebased onto current main, 115 tests pass |
+| branch `feat/bleach` | Bleach world: sword draw, Getsuga, Bankai, Hollow mask | merged (PR #13). Swing and hold fix pushed to main; new moves on `feat/bleach-moves`, local |
 | main checkout | on `main` | up to date as of 2026-11-07 |
 | `C:\Users\jaswi\Downloads\jutsu_invisibility_test` | old worktree of `feat/invisibility` (merged) | safe to remove |
 
-Nothing in Mera Mera, Goro Goro, Summoning, Sharingan or Bleach has been tried on a real webcam yet.
+Bleach's draw, Bankai and mask work on a real webcam (2026-11-08). Nothing in Mera Mera, Goro Goro, Summoning or Sharingan has been tried on one yet, nor the Bleach hunt, Senbonzakura or Flash Step.
 The One Piece gears haven't been tried on one either.
 
 ## 3. Timeline
@@ -79,9 +79,12 @@ Start menu: **1 Naruto, 2 One Piece, 3 Bleach**. M goes back a menu and Q quits 
 
 **Bleach** (`--bleach`), one mode where you power up:
 - Fist low, pulled up fast (1.5 palm sizes in 0.4 s) = draw a katana along the knuckle row.
-- Swing (tip travels 4 palm sizes in 0.15 s) = Getsuga Tensho crescent. Locked for 0.5 s after drawing.
+- Swing (tip travels 3 palm sizes in 0.3 s) = Getsuga Tensho crescent. Locked for 0.5 s after drawing.
 - Other hand's palm on the sword wrist for 1 s = Bankai (room dims, red flames, black blade).
 - Open palm on the forehead dragged below the chin within 0.6 s = Hollow mask for 15 s.
+- Bankai, sword hand open 0.25 s = Senbonzakura petals at the other hand's fingertip; a fist recalls.
+- Body centre moves 15% of the width in 0.25 s = Flash Step (segmentation now runs every frame, ~5 ms).
+- H = Hollow hunt, built on `Battle`; R retries.
 
 ## 5. Hand signs and jutsu
 
@@ -172,14 +175,14 @@ Add a combo with one line in `combos.py`.
 
 ## 10. Next steps, in order
 
-1. **Bleach:** push `feat/bleach`, open a PR and merge.
+1. **Bleach moves:** push `feat/bleach-moves`, open a PR and merge.
 2. **Webcam test session:** try every move on a real camera and tune the constants at the top
    of each module:
    - Mera: `PUNCH_GROWTH`, `PUNCH_WINDOW`
    - Goro: `RAISE_HOLD`, `POINT_UP`
    - Gomu: `PUMP_DIST`, `THUMB_IN`, `GEAR4_PUFF`
    - Summoning: the slap speed
-   - Bleach: `DRAW_RISE`, `SWING_DIST`, `GRIP`, `SWIPE_TIME`
+   - Bleach: `SWING_DIST`, `SCATTER_HOLD`, `STEP_DIST`, Hollow speed in `battle.py`
 3. **Cleanup:** remove the `jutsu_invisibility_test` worktree and the merged local branches.
 
 ## 11. Ideas for later

@@ -286,9 +286,15 @@ and work your way up.
 | Move | How | What happens |
 |------|-----|--------------|
 | Draw your sword | Make a fist low in the frame (below the middle) and pull it up fast, about a hand's length in under half a second | A katana grows out of your fist with a blue glow. It sits along your knuckles, so turn your fist to aim the blade. Open your hand for 1.5 s and it's gone. |
-| Getsuga Tensho | Swing the sword fast (the tip has to travel about four hand lengths in a split second) | A crescent of blue light flies off the blade the way you swung. Not in the first half second after drawing. |
+| Getsuga Tensho | Swing the sword fast (the tip has to travel about three hand lengths in a third of a second) | A crescent of blue light flies off the blade the way you swung. Not in the first half second after drawing. |
 | Bankai | With the sword out, grab that wrist with your other hand and hold for 1 s | The room goes dark, red flames rise off you, the blade turns black, and slashes become black and red. Lasts until you put the sword away. |
 | Hollow mask | Put an open hand flat on your forehead, then drag it down over your face to below your chin within about half a second | A white bone mask with red stripes, black eyes and yellow irises covers your face for 15 s. Slashes are bigger while it's on. |
+| Senbonzakura | In Bankai, open the sword hand and hold it open for a moment | The blade scatters into a swarm of petals. Point your other hand and they go there. Make a fist to call the blade back |
+| Flash Step | Lunge sideways fast, your whole body | Blue afterimages stay where you were. In a Hollow hunt the next hit in 0.6 s misses you |
+
+Press **H** for a **Hollow hunt**: Hollows walk in from both sides in waves. The blade, Getsuga
+and the petals all cut them; Bankai slashes hit twice as hard. If they reach you, you lose HP.
+Press H to stop, or R to retry after you lose.
 
 **Tips:** for the draw, start with your fist near your hip and pull up as if drawing from a
 sheath. A fist pointed straight at the camera keeps the blade's last angle, so turn it side-on to

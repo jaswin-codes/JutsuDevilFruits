@@ -42,7 +42,10 @@ With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 - Bleach: hold a fist low and pull it up fast to draw a glowing sword; it follows your fist's
   angle. Swing it for Getsuga Tensho (a flying crescent slash). Grip the sword wrist with your
   other hand for a second for Bankai (dark room, red flames, black blade). Drag an open hand
-  down over your face for a Hollow mask (bigger slashes for 15 s)
+  down over your face for a Hollow mask (bigger slashes for 15 s). In Bankai, open the sword hand
+  and the blade scatters into petals that go where your other hand points; a fist calls it back.
+  Lunge sideways for a Flash Step (afterimages). Press H for a Hollow hunt: waves walk in and your
+  blade, Getsuga and petals cut them down
 
 ## Current Sign Set
 
