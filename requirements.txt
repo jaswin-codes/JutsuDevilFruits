@@ -1,6 +1,6 @@
 # mediapipe is pinned below 0.10.30 because later releases dropped the mp.solutions API used here.
 # It installs opencv-contrib-python itself; don't add opencv-python too, both provide cv2 and clash.
-mediapipe==0.10.21
+mediapipe==1.2.2
 # Runs the hand-sign model in model/ (YOLOX-Nano ONNX from Kazuhito00/NARUTO-HandSignDetection, MIT).
 onnxruntime
 pytest
