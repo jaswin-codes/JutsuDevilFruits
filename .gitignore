@@ -22,3 +22,5 @@ Thumbs.db
 # Optional local config
 .env
 .env.*
+# Local secrets and OneNote stubs
+*.onetoc2
