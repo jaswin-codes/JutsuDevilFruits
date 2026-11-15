@@ -1,0 +1,21 @@
+name: Bug report
+description: Something broke or a gesture/sign isn't detected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Which mode and move were you doing, and what did you expect?
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS, Python version and webcam
+      placeholder: Windows 11, Python 3.11.9, built-in laptop webcam
+  - type: textarea
+    id: output
+    attributes:
+      label: Terminal output or traceback
+      render: shell
