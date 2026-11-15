@@ -14,6 +14,14 @@ Luffy's Gomu Gomu devil fruit (rubber stretching, Pistol, Gatling, Gear Second a
 then Mera Mera and Goro Goro, and a Bleach world lets you draw a sword out of thin air and transform.
 With more than jutsu in it now, it was renamed **JutsuDevilFruits**.
 
+## Privacy
+
+Everything runs locally on your computer. Your webcam feed is processed in memory by MediaPipe and the bundled ONNX model: no video, images or data are recorded, saved or sent anywhere, and the app makes no network requests.
+
+## Feedback and bugs
+
+Tried it? Tell me what worked and what didn't: [open an issue](https://github.com/jaswin-codes/JutsuDevilFruits/issues/new/choose) (bug report or feedback form). Please include your OS, webcam and Python version for bugs. Pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Features
 
 - Real Naruto hand signs (12 zodiac signs + prayer hands) from a trained YOLOX-Nano model
@@ -99,8 +107,9 @@ Add a combo of any length with one line in combos.py.
 
 ## Requirements
 
-- Python 3.11
-- Webcam
+- Python 3.11 (3.13+ is not supported by the pinned mediapipe)
+- A webcam, with decent front lighting
+- Windows is the tested platform. Sound effects use `winsound`, so on macOS and Linux the app runs silently
 
 Python packages:
 
@@ -171,3 +180,9 @@ GitHub Actions runs the same tests on every push and pull request (`.github/work
   - Hold each sign long enough to stabilize before changing.
 - Startup import errors:
   - Ensure the virtual environment is active and dependencies are installed.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The hand-sign model and sign photos come from
+[Kazuhito00/NARUTO-HandSignDetection](https://github.com/Kazuhito00/NARUTO-HandSignDetection) (MIT, see `model/LICENSE` and `assets/signs/SOURCE.md`).
+This is a fan project and is not affiliated with or endorsed by the owners of Naruto, One Piece or Bleach.
